@@ -57,6 +57,10 @@ class ReplaceItem(BaseModel):
     order_id: int
 
 # -------------- API ENDPOINTS --------------
+@app.get("/health")
+def health_check():
+    return {"status": "healthy"}
+    
 @app.get("/orders/{order_id}")
 def read_data(order_id: int):
     conn = get_db_connection()
