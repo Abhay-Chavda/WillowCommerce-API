@@ -1,199 +1,95 @@
-from fastapi import HTTPException
-from fastapi import FastAPI,Request
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 import sqlite3
 from datetime import datetime
-from fastapi.responses import JSONResponse
 
 app = FastAPI(title="WillowCommerce API Example")
-
+DB_PATH = "example.db"
 
 @app.get("/openapi-3.0.json", include_in_schema=False)
 def openapi_30(request: Request):
     schema = app.openapi()
     schema["openapi"] = "3.0.3"
-
     base_url = str(request.base_url).rstrip("/")
     schema["servers"] = [{"url": base_url}]
-
     return JSONResponse(schema)
-DB_PATH = "example.db"
 
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
 
-def days_since(delivers_at: str | None) -> int | None:
-    if delivers_at is None:
-        return -1
-    deliver_date = datetime.strptime(delivers_at, "%Y-%m-%d")
-    delta = datetime.now() - deliver_date
-    return delta.days
+def days_since(date_str: str | None) -> int | None:
+    if not date_str:
+        return None
+    deliver_date = datetime.strptime(date_str, "%Y-%m-%d")
+    return (datetime.now() - deliver_date).days
 
-
-# -------------- PAYLOAD MODELS -------------- 
-
-class searchingOrders(BaseModel):
-    user_id: int
-    query : str
-
-class findUser(BaseModel):
-    username: str
-
-class refundOrder(BaseModel):
-    order_id: int
+class RefundRequest(BaseModel):
     reason: str
 
-class cancelOrder(BaseModel):
-    order_id: int
-    
-class ReplaceItem(BaseModel):
-    order_id: int
-
-# -------------- API ENDPOINTS --------------
 @app.get("/health")
 def health_check():
     return {"status": "healthy"}
-    
-@app.get("/orders/{order_id}")
-def read_data(order_id: int):
-    conn = get_db_connection()
-    item = conn.execute("SELECT * FROM orders WHERE order_id = ?", (order_id,)).fetchone()
-    conn.close()
-    if item is None:
-        raise HTTPException(status_code=404, detail="Item not found")
-    return {"order":dict(item)}
-
-# @app.get("/order/find_user/{username}")
-# def find_user(username: str):
-#     conn = get_db_connection()
-#     user = conn.execute("SELECT user_id FROM users WHERE name = ?", (username,)).fetchone()
-#     conn.close()
-#     if user is None:
-#         raise HTTPException(status_code=404, detail="User not found")
-#     return dict(user)
-
-# @app.get("/order/searching_orders/{user_id}/{product_id}")
-# def searching_orders(user_id: int, product_id: int):
-#     conn = get_db_connection()
-#     orders = conn.execute("SELECT * FROM orders WHERE user_id = ? AND product_id = ?", (user_id, product_id)).fetchall()
-#     conn.close()
-#     if not orders:
-#         raise HTTPException(status_code=404, detail="No orders found")
-#     return [dict(order) for order in orders]
-
-# @app.post("/search_orders")
-# def get_status_info(payload: searchingOrders):
-#     conn = get_db_connection()
-#     cursor = conn.cursor()
-#     q = f"%{payload.query}%"
-#     cursor.execute("""SELECT order_id,product_name,status,order_date 
-#                           FROM orders 
-#                           WHERE user_id = ? AND products LIKE ?
-#                           ORDER BY order_date DESC
-#                           LIMIT 5
-#                           """, 
-#                           (payload.user_id, q),)
-#     rows = [dict(row) for row in cursor.fetchall()]
-#     conn.close()
-#     if not rows:
-#         raise HTTPException(status_code=404, detail="No orders found")
-#     return {"matched_rows": rows}
 
 @app.get("/orders/{order_id}")
 def get_order(order_id: int):
     conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("""SELECT * FROM orders WHERE order_id = ?""", (order_id,))
-    order = cursor.fetchone()
+    row = conn.execute("SELECT * FROM orders WHERE order_id = ?", (order_id,)).fetchone()
     conn.close()
-    if not order:
+    if not row:
         raise HTTPException(status_code=404, detail="Order not found")
-    data = dict(order)
-    date_since_ordered = days_since(data["order_date"])
-    data["days_since_ordered"] = date_since_ordered
+
+    data = dict(row)
+    data["days_since_ordered"] = days_since(data.get("order_date"))
     return data
 
 @app.post("/orders/{order_id}/cancel")
 def initiate_cancellation(order_id: int):
     conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("""SELECT status FROM orders WHERE order_id = ?""", (order_id,))
-    row = cursor.fetchone()
+    row = conn.execute("SELECT status FROM orders WHERE order_id = ?", (order_id,)).fetchone()
     if not row:
         conn.close()
         raise HTTPException(status_code=404, detail="Order not found")
-    
+
     status = row["status"]
-    if status not in ["PLACED", "PROCESSING"] and status != "DELIVERED":
-        conn.close()
-        raise HTTPException(status_code=409, return{detail=f"Order cannot be canceled because order is {status}.Wait for it to Deliver."})
+
     if status == "DELIVERED":
         conn.close()
-        raise HTTPException(status_code=409, return{detail=f"Order cannot be canceled because order is {status}.If you want you can request refund or replacement."})
-    cursor.execute("""UPDATE orders 
-                   SET status = 'CANCELLED' WHERE order_id = ?""",
-                   (order_id,))
+        raise HTTPException(status_code=409, detail="Order is DELIVERED. Request refund or replacement.")
+    if status not in ["PLACED", "PROCESSING"]:
+        conn.close()
+        raise HTTPException(status_code=409, detail=f"Order cannot be canceled because order is {status}.")
+
+    conn.execute("UPDATE orders SET status = 'CANCELLED' WHERE order_id = ?", (order_id,))
     conn.commit()
     conn.close()
     return {"ok": True, "order_id": order_id, "new_status": "CANCELLED"}
 
 @app.post("/orders/{order_id}/refund")
-def initiate_refund(order_id: int, payload: refundOrder):
+def initiate_refund(order_id: int, payload: RefundRequest):
     conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("""SELECT status, delivers_at FROM orders WHERE order_id = ?""", (order_id,))
-    row = cursor.fetchone()
+    row = conn.execute("SELECT status, delivers_at FROM orders WHERE order_id = ?", (order_id,)).fetchone()
     if not row:
         conn.close()
         raise HTTPException(status_code=404, detail="Order not found")
-    
+
     status = row["status"]
     delivers_at = row["delivers_at"]
     days_passed = days_since(delivers_at)
 
-    if status != "DELIVERED" and stauts not in ["PLACED", "PROCESSING"]:
-        conn.close()
-        raise HTTPException(status_code=409, detail=f"Refund not applicable as order is {status}.Wait for it to Deliver.")
     if status in ["PLACED", "PROCESSING"]:
         conn.close()
-        raise HTTPException(status_code=409, detail=f"Refund not applicable as order is {status}.You can cancel it Do you want to cancel it?")
+        raise HTTPException(status_code=409, detail=f"Refund not applicable as order is {status}. You can cancel it.")
+    if status != "DELIVERED":
+        conn.close()
+        raise HTTPException(status_code=409, detail=f"Refund not applicable as order is {status}.")
     if days_passed is None or days_passed > 7:
         conn.close()
         raise HTTPException(status_code=409, detail="Refund period has expired")
 
-    cursor.execute("""UPDATE orders 
-                   SET status = 'REFUND_INITIATED' WHERE order_id = ?""",
-                   (order_id,))
+    conn.execute("UPDATE orders SET status = 'REFUND_INITIATED' WHERE order_id = ?", (order_id,))
     conn.commit()
     conn.close()
-    return {"ok": True, "order_id": order_id, "new_status": "REFUND_INITIATED","reason": payload.reason}
-
-@app.post("/orders/{order_id}/replace")
-def initiate_replacement(order_id: int, payload: ReplaceItem):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("""SELECT status, delivers_at FROM orders WHERE order_id = ?""", (order_id,))
-    row = cursor.fetchone()
-    if not row:
-        conn.close()
-        raise HTTPException(status_code=404, detail="Order not found")
-    
-    status = row["status"]
-    delivers_at = row["delivers_at"]
-    days_passed = days_since(delivers_at)
-
-    if status != "DELIVERED":
-        conn.close()
-        raise HTTPException(status_code=400, detail=f"Replacement not applicable as order is {status}")
-    if days_passed is None or days_passed > 7:
-        conn.close()
-        raise HTTPException(status_code=400, detail="Replacement period has expired")
-
-    cursor.execute("""UPDATE orders 
-                   SET status = 'REPLACEMENT_INITIATED' WHERE order_id = ?""",
-                   (order_id,))
-    conn.commit()
-    conn.close()
-    return {"ok": True, "order_id": order_id, "new_status": "REPLACEMENT_INITIATED"}
+    return {"ok": True, "order_id": order_id, "new_status": "REFUND_INITIATED", "reason": payload.reason}
