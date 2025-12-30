@@ -8,20 +8,15 @@ from fastapi.responses import JSONResponse
 app = FastAPI(title="WillowCommerce API Example")
 
 
-NGROK_BASE = "https://ungratuitous-overillustrative-samual.ngrok-free.dev"
-
 @app.get("/openapi-3.0.json", include_in_schema=False)
-def openapi_30():
+def openapi_30(request: Request):
     schema = app.openapi()
-
-    # Force OpenAPI version to 3.0.3 for Foundry compatibility
     schema["openapi"] = "3.0.3"
 
-    # Ensure Foundry knows the base URL
-    schema["servers"] = [{"url": NGROK_BASE}]
+    base_url = str(request.base_url).rstrip("/")
+    schema["servers"] = [{"url": base_url}]
 
     return JSONResponse(schema)
-
 DB_PATH = "example.db"
 
 def get_db_connection():
