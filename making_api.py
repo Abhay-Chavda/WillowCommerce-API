@@ -126,9 +126,12 @@ def initiate_cancellation(order_id: int):
         raise HTTPException(status_code=404, detail="Order not found")
     
     status = row["status"]
-    if status not in ["PLACED", "PROCESSING"]:
+    if status not in ["PLACED", "PROCESSING"] and status != "DELIVERED":
         conn.close()
-        raise HTTPException(status_code=400, detail=f"Order cannot be canceled because order is {status}")
+        raise HTTPException(status_code=409, detail=f"Order cannot be canceled because order is {status}.Wait for it to Deliver.")
+    if status == "DELIVERED":
+        conn.close()
+        raise HTTPException(status_code=409, detail=f"Order cannot be canceled because order is {status}.If you want you can request refund or replacement.")
     cursor.execute("""UPDATE orders 
                    SET status = 'CANCELLED' WHERE order_id = ?""",
                    (order_id,))
@@ -150,12 +153,15 @@ def initiate_refund(order_id: int, payload: refundOrder):
     delivers_at = row["delivers_at"]
     days_passed = days_since(delivers_at)
 
-    if status != "DELIVERED":
+    if status != "DELIVERED" and stauts not in ["PLACED", "PROCESSING"]:
         conn.close()
-        raise HTTPException(status_code=400, detail=f"Refund not applicable as order is {status}")
+        raise HTTPException(status_code=409, detail=f"Refund not applicable as order is {status}.Wait for it to Deliver.")
+    if status in ["PLACED", "PROCESSING"]:
+        conn.close()
+        raise HTTPException(status_code=409, detail=f"Refund not applicable as order is {status}.You can cancel it Do you want to cancel it?")
     if days_passed is None or days_passed > 7:
         conn.close()
-        raise HTTPException(status_code=400, detail="Refund period has expired")
+        raise HTTPException(status_code=409, detail="Refund period has expired")
 
     cursor.execute("""UPDATE orders 
                    SET status = 'REFUND_INITIATED' WHERE order_id = ?""",
