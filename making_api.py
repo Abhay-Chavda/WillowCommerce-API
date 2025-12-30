@@ -128,10 +128,10 @@ def initiate_cancellation(order_id: int):
     status = row["status"]
     if status not in ["PLACED", "PROCESSING"] and status != "DELIVERED":
         conn.close()
-        raise HTTPException(status_code=409, detail=f"Order cannot be canceled because order is {status}.Wait for it to Deliver.")
+        raise HTTPException(status_code=409, return{detail=f"Order cannot be canceled because order is {status}.Wait for it to Deliver."})
     if status == "DELIVERED":
         conn.close()
-        raise HTTPException(status_code=409, detail=f"Order cannot be canceled because order is {status}.If you want you can request refund or replacement.")
+        raise HTTPException(status_code=409, return{detail=f"Order cannot be canceled because order is {status}.If you want you can request refund or replacement."})
     cursor.execute("""UPDATE orders 
                    SET status = 'CANCELLED' WHERE order_id = ?""",
                    (order_id,))
