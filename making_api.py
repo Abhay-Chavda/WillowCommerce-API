@@ -64,7 +64,7 @@ def read_data(order_id: int):
     conn.close()
     if item is None:
         raise HTTPException(status_code=404, detail="Item not found")
-    return dict(item)
+    return {"order":dict(item)}
 
 # @app.get("/order/find_user/{username}")
 # def find_user(username: str):
