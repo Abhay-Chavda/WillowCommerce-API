@@ -58,9 +58,9 @@ class ReplaceItem(BaseModel):
 
 # -------------- API ENDPOINTS --------------
 @app.get("/orders/{order_id}")
-def read_data(item_id: int):
+def read_data(order_id: int):
     conn = get_db_connection()
-    item = conn.execute("SELECT * FROM items WHERE id = ?", (item_id,)).fetchone()
+    item = conn.execute("SELECT * FROM orders WHERE order_id = ?", (order_id,)).fetchone()
     conn.close()
     if item is None:
         raise HTTPException(status_code=404, detail="Item not found")
