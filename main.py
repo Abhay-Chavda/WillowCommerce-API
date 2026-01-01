@@ -1,6 +1,6 @@
 from azure.identity import DefaultAzureCredential
 from azure.ai.projects import AIProjectClient
-from openai import get_openai_client
+import openai
 
 myEndpoint = "https://amar-0558-resource.services.ai.azure.com/api/projects/amar-0558"
 
@@ -23,3 +23,13 @@ response = openai_client.responses.create(
 )
 
 print(f"Response output: {response.output_text}")
+
+user_message = input("Enter your message: ")
+
+response_user = openai_client.responses.create(
+    input=[{"role": "user", "content": user_message}],
+    extra_body={"agent": {"name": agent.name, "type": "agent_reference"}},
+)
+
+print(f"Response output: {response_user.output_text}")
+print(f"Response details: {response_user}")
