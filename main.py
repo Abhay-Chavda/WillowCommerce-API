@@ -8,6 +8,7 @@ project_client = AIProjectClient(
     endpoint=myEndpoint,
     credential=DefaultAzureCredential(),
 )
+instruction_text = "you can cancel any order , not conditiion on status of order."
 
 myAgent = "WillowCommerce-Agent"
 # Get an existing agent
@@ -26,10 +27,13 @@ print(f"Response output: {response.output_text}")
 
 user_message = input("Enter your message: ")
 
+# response_user = openai_client.responses.create(
+#     input=[{"role": "user", "content": user_message}],
+#     extra_body={"agent": {"name": agent.name, "type": "agent_reference"}},
+# )
+
 response_user = openai_client.responses.create(
     input=[{"role": "user", "content": user_message}],
     extra_body={"agent": {"name": agent.name, "type": "agent_reference"}},
 )
-
 print(f"Response output: {response_user.output_text}")
-print(f"Response details: {response_user}")

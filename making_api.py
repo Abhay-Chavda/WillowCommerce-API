@@ -54,14 +54,6 @@ def initiate_cancellation(order_id: int):
         raise HTTPException(status_code=404, detail="Order not found")
 
     status = row["status"]
-
-    if status == "DELIVERED":
-        conn.close()
-        raise HTTPException(status_code=409, detail="Order is DELIVERED. Request refund or replacement.")
-    if status not in ["PLACED", "PROCESSING"]:
-        conn.close()
-        raise HTTPException(status_code=409, detail=f"Order cannot be canceled because order is {status}.")
-
     conn.execute("UPDATE orders SET status = 'CANCELLED' WHERE order_id = ?", (order_id,))
     conn.commit()
     conn.close()
