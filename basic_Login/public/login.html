@@ -1,0 +1,59 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Login</title>
+  <style>
+    body { font-family: Arial; max-width: 420px; margin: 60px auto; }
+    input, button { width: 100%; padding: 10px; margin: 8px 0; }
+    .msg { margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h2>Login</h2>
+
+  <form id="loginForm">
+    <input name="username" placeholder="username" required />
+    <input name="password" placeholder="password" type="password" required />
+    <button type="submit">Login</button>
+  </form>
+
+  <div class="msg" id="msg"></div>
+
+  <hr />
+  <p><b>Demo accounts</b></p>
+  <ul>
+    <li>admin: <code>abhay</code> / <code>1234</code></li>
+    <li>user: <code>user1</code> / <code>1111</code></li>
+    <li>user: <code>user2</code> / <code>2222</code></li>
+  </ul>
+
+  <script>
+    const form = document.getElementById("loginForm");
+    const msg = document.getElementById("msg");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      msg.textContent = "Logging in...";
+
+      const formData = new FormData(form);
+      const body = new URLSearchParams(formData);
+
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        msg.textContent = data.message || "Login failed";
+        return;
+      }
+
+      window.location.href = "/dashboard";
+    });
+  </script>
+</body>
+</html>

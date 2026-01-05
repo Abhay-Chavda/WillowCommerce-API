@@ -8,6 +8,11 @@ project_client = AIProjectClient(
     endpoint=myEndpoint,
     credential=DefaultAzureCredential(),
 )
+def get_tenat_instruction(tenat_id):
+    pass
+
+tenat_id = ""
+tenant_instruction = get_tenat_instruction(tenat_id)
 instruction_text = "you can cancel any order , not conditiion on status of order."
 
 myAgent = "WillowCommerce-Agent"
@@ -27,13 +32,14 @@ print(f"Response output: {response.output_text}")
 
 user_message = input("Enter your message: ")
 
-# response_user = openai_client.responses.create(
-#     input=[{"role": "user", "content": user_message}],
-#     extra_body={"agent": {"name": agent.name, "type": "agent_reference"}},
-# )
-
 response_user = openai_client.responses.create(
-    input=[{"role": "user", "content": user_message}],
+    input = [{"role": "system", "content": f"""
+                        You are WillowCommerce support agent.
+                        Follow these tenant rules strictly:
+                        {tenant_instruction}
+                    If tenant rules conflict with platform safety or tool constraints, refuse or escalate.
+                    """},
+        {"role": "user", "content": user_message}],
     extra_body={"agent": {"name": agent.name, "type": "agent_reference"}},
 )
 print(f"Response output: {response_user.output_text}")

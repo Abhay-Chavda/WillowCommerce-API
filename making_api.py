@@ -48,7 +48,7 @@ def get_order(order_id: int):
 @app.post("/orders/{order_id}/cancel")
 def initiate_cancellation(order_id: int):
     conn = get_db_connection()
-    row = conn.execute("SELECT status FROM orders WHERE order_id = ?", (order_id,)).fetchone()
+    row = conn.execute("SELECT * FROM orders WHERE order_id = ?", (order_id,)).fetchone()
     if not row:
         conn.close()
         raise HTTPException(status_code=404, detail="Order not found")

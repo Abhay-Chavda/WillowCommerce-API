@@ -1,0 +1,201 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>Dashboard</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Inter, Arial, sans-serif;
+            background: #f6f7fb;
+        }
+
+        /* Top bar */
+        .topbar {
+            background: #ffffff;
+            padding: 14px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .search {
+            width: 320px;
+            padding: 10px 14px;
+            border-radius: 10px;
+            border: 1px solid #e5e7eb;
+        }
+
+        /* Layout */
+        .container {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 20px;
+            padding: 24px;
+        }
+
+        .card {
+            background: #fff;
+            border-radius: 16px;
+            padding: 16px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+        }
+
+        /* Articles */
+        .article {
+            padding: 12px;
+            border-radius: 12px;
+            margin-bottom: 10px;
+            cursor: pointer;
+        }
+
+        .article:hover {
+            background: #f3f4f6;
+        }
+
+        .badge {
+            display: inline-block;
+            background: #eef2ff;
+            color: #4338ca;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            margin-top: 6px;
+        }
+
+        /* Editor */
+        input,
+        textarea,
+        select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 10px;
+            border: 1px solid #e5e7eb;
+            margin-top: 6px;
+            margin-bottom: 12px;
+        }
+
+        textarea {
+            height: 140px;
+            resize: none;
+        }
+
+        .row {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 12px;
+        }
+
+        .save-btn {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+
+        .logout {
+            background: transparent;
+            border: none;
+            color: #ef4444;
+            cursor: pointer;
+            font-weight: 600;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Top bar -->
+    <div class="topbar">
+        <input class="search" placeholder="Search cases, orders, customers..." />
+        <div>
+            <span id="user"></span>
+            <button class="logout" id="logoutBtn">Logout</button>
+        </div>
+    </div>
+
+    <!-- Main -->
+    <div class="container">
+
+        <!-- Articles -->
+        <div class="card">
+            <h3>Articles</h3>
+            <input placeholder="Search articles" />
+
+            <div class="article">
+                <strong>Replacement Workflow</strong>
+                <div class="badge">Willowcommerce Client</div>
+            </div>
+
+            <div class="article">
+                <strong>Order Status Messages</strong>
+                <div class="badge">Order Status</div>
+            </div>
+        </div>
+
+        <!-- Editor -->
+        <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h3>Editor</h3>
+                <button class="save-btn">Save</button>
+            </div>
+
+            <label>Title</label>
+            <input value="Replacement Workflow (Tenant SOP)" />
+
+            <div class="row">
+                <div>
+                    <label>Scope</label>
+                    <input value="Willowcommerce Client" />
+                </div>
+                <div>
+                    <label>Category</label>
+                    <select id="categorySelect">
+                        <option value="return_labels">Return Labels</option>
+                        <option value="order_status">Order Status</option>
+                        <option value="replacements" selected>Replacements</option>
+                        <option value="cancellations">Cancellations</option>
+                        <option value="refund_drafts">Refund Drafts</option>
+                        <option value="escalation">Escalation</option>
+                        <option value="other">Other</option>
+                    </select>
+
+                </div>
+            </div>
+
+            <label>Content</label>
+            <textarea>
+When a customer requests a replacement, confirm SKU/variant and create a replacement order. Escalate if inventory is low.
+      </textarea>
+        </div>
+
+    </div>
+
+    <script>
+        async function loadUser() {
+            const res = await fetch("/api/me");
+            const data = await res.json();
+
+            if (!data.user) {
+                window.location.href = "/login";
+                return;
+            }
+
+            document.getElementById("user").textContent =
+                data.user.username + " (" + data.user.role + ")";
+        }
+
+        document.getElementById("logoutBtn").onclick = async () => {
+            await fetch("/api/logout", { method: "POST" });
+            window.location.href = "/login";
+        };
+
+        loadUser();
+    </script>
+</body>
+
+</html>
