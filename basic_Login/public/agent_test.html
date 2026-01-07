@@ -1,0 +1,105 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Test Agent</title>
+  <style>
+    body { margin:0; font-family: Arial, sans-serif; background:#f6f7fb; }
+    .topbar { background:#fff; padding:14px 24px; display:flex; justify-content:space-between; border-bottom:1px solid #e5e7eb; }
+    .wrap { max-width: 980px; margin: 24px auto; padding: 0 16px; }
+    .card { background:#fff; border-radius:16px; padding:16px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    .chat { height: 360px; overflow:auto; border:1px solid #e5e7eb; border-radius:12px; padding:12px; background:#fafafa; }
+    .msg { margin: 8px 0; padding: 10px 12px; border-radius: 12px; max-width: 80%; }
+    .user { background:#dbeafe; margin-left:auto; }
+    .bot { background:#e5e7eb; }
+    .row { display:flex; gap:10px; margin-top:12px; }
+    input { flex:1; padding:10px; border-radius:10px; border:1px solid #e5e7eb; }
+    button { padding:10px 16px; border-radius:10px; border:none; cursor:pointer; background:#2563eb; color:#fff; }
+    .btn2 { background:#111827; }
+    .logout { background:transparent; border:none; color:#ef4444; cursor:pointer; font-weight:600; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div>
+      <b id="agentTitle">Agent Test</b>
+    </div>
+    <div>
+      <span id="user"></span>
+      <button class="logout" id="logoutBtn">Logout</button>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="card">
+      <div class="chat" id="chat"></div>
+
+      <div class="row">
+        <input id="input" placeholder="Type a message to test the agent..." />
+        <button id="sendBtn">Send</button>
+        <button class="btn2" id="dashBtn">Dashboard</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const agentId = window.location.pathname.split("/")[2];
+
+    async function loadMe() {
+      const res = await fetch("/api/me");
+      const data = await res.json();
+      if (!data.user) { window.location.href = "/login"; return; }
+      document.getElementById("user").textContent = `${data.user.username} (${data.user.role})`;
+    }
+
+    async function loadAgent() {
+      const res = await fetch(`/api/agents/${agentId}`);
+      const data = await res.json();
+      if (res.ok) document.getElementById("agentTitle").textContent = `Test: ${data.agent.name}`;
+    }
+
+    function addMsg(role, text) {
+      const chat = document.getElementById("chat");
+      const div = document.createElement("div");
+      div.className = `msg ${role === "user" ? "user" : "bot"}`;
+      div.textContent = text;
+      chat.appendChild(div);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    async function send() {
+      const input = document.getElementById("input");
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = "";
+      addMsg("user", text);
+
+      const res = await fetch(`/api/agents/${agentId}/test`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ message: text })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { addMsg("bot", data.message || "Error"); return; }
+      addMsg("bot", data.reply);
+    }
+
+    document.getElementById("sendBtn").onclick = send;
+    document.getElementById("input").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") send();
+    });
+
+    document.getElementById("dashBtn").onclick = () => {
+      window.location.href = `/agent/${agentId}/dashboard`;
+    };
+
+    document.getElementById("logoutBtn").onclick = async () => {
+      await fetch("/api/logout", { method: "POST" });
+      window.location.href = "/login";
+    };
+
+    loadMe();
+    loadAgent();
+  </script>
+</body>
+</html>

@@ -1,0 +1,89 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Agent Dashboard</title>
+  <style>
+    body { margin:0; font-family: Arial, sans-serif; background:#f6f7fb; }
+    .topbar { background:#fff; padding:14px 24px; display:flex; justify-content:space-between; border-bottom:1px solid #e5e7eb; }
+    .wrap { max-width: 980px; margin: 24px auto; padding: 0 16px; }
+    .card { background:#fff; border-radius:16px; padding:16px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    .grid { display:grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .muted { color:#6b7280; font-size: 13px; }
+    pre { white-space:pre-wrap; background:#f9fafb; padding:12px; border-radius:12px; border:1px solid #e5e7eb; }
+    .btn { background:#2563eb; color:#fff; border:none; padding:10px 16px; border-radius:10px; cursor:pointer; }
+    .logout { background:transparent; border:none; color:#ef4444; cursor:pointer; font-weight:600; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div><b id="title">Agent Dashboard</b></div>
+    <div>
+      <span id="user"></span>
+      <button class="logout" id="logoutBtn">Logout</button>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="grid">
+      <div class="card">
+        <h3>Agent Details</h3>
+        <div class="muted" id="meta"></div>
+        <h4>Instructions</h4>
+        <pre id="instructions"></pre>
+        <button class="btn" id="testBtn">Go to Test</button>
+      </div>
+
+      <div class="card">
+        <h3>Recent Test Messages</h3>
+        <div class="muted">This shows what you tested (stored in memory).</div>
+        <pre id="messages"></pre>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const agentId = window.location.pathname.split("/")[2];
+
+    async function loadMe() {
+      const res = await fetch("/api/me");
+      const data = await res.json();
+      if (!data.user) { window.location.href = "/login"; return; }
+      document.getElementById("user").textContent = `${data.user.username} (${data.user.role})`;
+    }
+
+    async function loadAgent() {
+      const res = await fetch(`/api/agents/${agentId}`);
+      const data = await res.json();
+      if (!res.ok) return;
+
+      const a = data.agent;
+      document.getElementById("title").textContent = `Dashboard: ${a.name}`;
+      document.getElementById("meta").textContent = `Category: ${a.category} • Scope: ${a.scope || "-"} • Created by: ${a.created_by}`;
+      document.getElementById("instructions").textContent = a.instructions;
+    }
+
+    async function loadMessages() {
+      const res = await fetch(`/api/agents/${agentId}/messages`);
+      const data = await res.json();
+      if (!res.ok) return;
+
+      const lines = (data.messages || []).slice(-10).map(m => `${m.role}: ${m.content}`);
+      document.getElementById("messages").textContent = lines.join("\n") || "(no messages yet)";
+    }
+
+    document.getElementById("testBtn").onclick = () => {
+      window.location.href = `/agent/${agentId}/test`;
+    };
+
+    document.getElementById("logoutBtn").onclick = async () => {
+      await fetch("/api/logout", { method: "POST" });
+      window.location.href = "/login";
+    };
+
+    loadMe();
+    loadAgent();
+    loadMessages();
+  </script>
+</body>
+</html>

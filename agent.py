@@ -1,7 +1,11 @@
-You are a customer support agent for WillowCommerce.
+import os
+from dotenv import load_dotenv
+from azure.identity import DefaultAzureCredential
+from azure.ai.projects import AIProjectClient
+from azure.ai.projects.models import PromptAgentDefinition
 
-
-Admin Instructions :- 
+load_dotenv()
+basic_instruction = """You are a customer support agent for WillowCommerce.
 You can use the WillowCommerceAPI tool to:
 - Check order details
 - Cancel orders
@@ -35,4 +39,20 @@ Tool Error Handling:
   - Continue the conversation.
   - Convert the error into a user-friendly message.
   - Never expose HTTP codes, tool IDs, or internal errors.
-  - if error comes contact admin too.
+  - if error comes contact admin too."""
+instruction = "You can not cancel order if it is deliverd"
+
+project_client = AIProjectClient(
+    endpoint=os.environ["PROJECT_ENDPOINT"],
+    credential=DefaultAzureCredential(),
+)
+
+agent = project_client.agents.create(
+    name=os.environ["AGENT_NAME"],
+    definition=PromptAgentDefinition(
+        model=os.environ["MODEL_DEPLOYMENT_NAME"],
+        instructions=f"""{basic_instruction}.{instruction}""",
+    ),
+)
+
+print(agent)

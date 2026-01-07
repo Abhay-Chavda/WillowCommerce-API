@@ -71,17 +71,12 @@ def initiate_refund(order_id: int, payload: RefundRequest):
     delivers_at = row["delivers_at"]
     days_passed = days_since(delivers_at)
 
-    if status in ["PLACED", "PROCESSING"]:
-        conn.close()
-        raise HTTPException(status_code=409, detail=f"Refund not applicable as order is {status}. You can cancel it.")
-    if status != "DELIVERED":
-        conn.close()
-        raise HTTPException(status_code=409, detail=f"Refund not applicable as order is {status}.")
-    if days_passed is None or days_passed > 7:
-        conn.close()
-        raise HTTPException(status_code=409, detail="Refund period has expired")
 
     conn.execute("UPDATE orders SET status = 'REFUND_INITIATED' WHERE order_id = ?", (order_id,))
     conn.commit()
     conn.close()
     return {"ok": True, "order_id": order_id, "new_status": "REFUND_INITIATED", "reason": payload.reason}
+
+@app.post("/orders/{order_id}/humancontact")
+def human_contact(order_id:int,tenant_id:str):
+    return{"print":f"""Human contact achived in {tenant_id}"""}

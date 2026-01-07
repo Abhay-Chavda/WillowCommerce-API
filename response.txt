@@ -1,0 +1,65 @@
+{
+  "id": "resp_0099b813b71e6e7c00695e4deae6e481948d4a59418d1ad150",
+  "created_at": 1767788010.0,
+  "error": null,
+  "incomplete_details": null,
+  "instructions": "You are a customer support agent for WillowCommerce.\n\nYou can use the WillowCommerceAPI tool to:\n- Check order details\n- Cancel orders\n- Refund orders\n\n\nBefore calling any action API (cancel, refund, return):\n-You MUST confirm before cancelling\n- You MUST first call GET /orders/{order_id}\n- You MUST read the order status and delivery date\n- You MUST evaluate business rules using the fetched data\n- If rules do not pass, DO NOT call the action API\n- if not calling action API just reply politely to user why you can't do the action said by user.\n\nWhen calling APIs:\n- If an action succeeds, confirm it clearly to the user.\n- If an API returns HTTP 409 (Conflict):\n  - Do NOT show technical errors.\n  - Read the error response body.\n  - Explain in simple language why the action cannot be completed.\n  - Apologize briefly and guide the user on what they can do next.\n\nRules:\n- Always ask for order_id if it is missing.\n- Never guess order_id.\n- Use the API tool when the user asks about orders.\n- Confirm actions like cancellation or refund before calling the API.\n\nTool Error Handling:\n- If a tool call fails (including HTTP 409):\n  - Treat it as a normal business response.\n  - Continue the conversation.\n  - Convert the error into a user-friendly message.\n  - Never expose HTTP codes, tool IDs, or internal errors.\n  - if error comes contact admin too.",
+  "metadata": {},
+  "model": "gpt-4o",
+  "object": "response",
+  "output": [
+    {
+      "id": "msg_0099b813b71e6e7c00695e4dec90f88194ab6ecd9aa4725c97",
+      "content": [
+        {
+          "annotations": [],
+          "text": "I can assist you with the following:\n\n1. **Order Status and Details:** Provide information about your order, including its current status and delivery details.\n2. **Order Cancellations:** Process cancellations for eligible orders based on the order's current status.\n3. **Refund Requests:** Handle refund requests and initiate refunds in case of eligible issues with the delivered order or unsatisfactory items.\n4. **General Order Support:** Help resolve any concerns or problems related to your orders.\n\nPlease provide your order ID so I can assist you with any specific issue!",
+          "type": "output_text",
+          "logprobs": []
+        }
+      ],
+      "role": "assistant",
+      "status": "completed",
+      "type": "message",
+      "created_by": {
+        "agent": {
+          "type": "agent_id",
+          "name": "WillowCommerce-Agent",
+          "version": "8"
+        },
+        "response_id": "resp_0099b813b71e6e7c00695e4deae6e481948d4a59418d1ad150"
+      }
+    }
+  ],
+  "parallel_tool_calls": true,
+  "temperature": 1.0,
+  "tool_choice": "auto",
+  "top_p": 1.0,
+  "background": false,
+  "conversation": null,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "previous_response_id": null,
+  "prompt": null,
+  "prompt_cache_key": null,
+  "prompt_cache_retention": null,
+  "reasoning": {
+    "effort": null,
+    "generate_summary": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "status": "completed",
+  "usage": {
+    "input_tokens": 1318,
+    "input_tokens_details": {
+      "cached_tokens": 0
+    },
+    "output_tokens": 112,
+    "output_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "total_tokens": 1430
+  }
+}

@@ -1,0 +1,267 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>Create Agent</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f6f7fb;
+        }
+
+        .topbar {
+            background: #fff;
+            padding: 14px 24px;
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .wrap {
+            max-width: 980px;
+            margin: 24px auto;
+            padding: 0 16px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .card {
+            background: #fff;
+            border-radius: 16px;
+            padding: 16px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+        }
+
+        input,
+        textarea,
+        select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 10px;
+            border: 1px solid #e5e7eb;
+            margin-top: 6px;
+            margin-bottom: 12px;
+        }
+
+        textarea {
+            height: 220px;
+            resize: vertical;
+        }
+
+        .btn {
+            background: #2563eb;
+            color: #fff;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+
+        .btn2 {
+            background: #111827;
+            color: #fff;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+
+        .muted {
+            color: #6b7280;
+            font-size: 13px;
+        }
+
+        .row {
+            display: flex;
+            gap: 12px;
+        }
+
+        .logout {
+            background: transparent;
+            border: none;
+            color: #ef4444;
+            cursor: pointer;
+            font-weight: 600;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="topbar">
+        <div><b>Agent Studio</b></div>
+        <div>
+            <span id="user"></span>
+            <button class="logout" id="logoutBtn">Logout</button>
+        </div>
+    </div>
+
+    <div class="wrap">
+        <div class="grid">
+            <div class="card">
+                <h2>Create an Agent</h2>
+                <div class="muted">Fill these details. After creating, you’ll be taken to the Test page.</div>
+
+                <label>Agent Name</label>
+                <input id="agentName" placeholder="e.g., Replacement SOP Agent" />
+
+                <div id="categoryBlock" style="display:none;">
+                    <label>Category</label>
+                    <select id="categorySelect">
+                        <option value="return_labels">Return Labels</option>
+                        <option value="order_status">Order Status</option>
+                        <option value="replacements" selected>Replacements</option>
+                        <option value="cancellations">Cancellations</option>
+                        <option value="refund_drafts">Refund Drafts</option>
+                        <option value="escalation">Escalation</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+
+
+                <label>Agent Instructions</label>
+                <textarea id="instructions" placeholder="Write system instructions for the agent..."></textarea>
+
+                <div class="row" style="flex-wrap:wrap;">
+                    <button class="btn" id="createBtn">Create Agent</button>
+                    <button class="btn2" id="clearBtn">Clear</button>
+                    <button class="btn2" id="testBtn" style="display:none;">Test</button>
+                    <button class="btn2" id="dashBtn" style="display:none;">Dashboard</button>
+                </div>
+
+
+                <div id="msg" class="muted"></div>
+            </div>
+
+            <div class="card">
+                <h3>Example instructions</h3>
+                <div class="muted">You can copy this and edit.</div>
+                <pre
+                    style="white-space:pre-wrap; background:#f9fafb; padding:12px; border-radius:12px; border:1px solid #e5e7eb;">
+You are a support SOP agent for ecommerce operations.
+Always answer in steps.
+Ask 1 clarifying question if needed.
+If user asks for replacement: verify order id, SKU, reason, and warranty policy.
+If information is missing, request it.
+        </pre>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let existingAgentId = null;
+
+        async function loadMe() {
+            const res = await fetch("/api/me");
+            const data = await res.json();
+            if (!data.user) { window.location.href = "/login"; return; }
+            document.getElementById("user").textContent = `${data.user.username} (${data.user.role})`;
+        }
+
+        async function loadMyAgent() {
+            const res = await fetch("/api/my-agent");
+            const data = await res.json();
+
+            if (data.agent) {
+                existingAgentId = data.agent.id;
+
+                document.getElementById("agentName").value = data.agent.name || "";
+                document.getElementById("instructions").value = data.agent.instructions || "";
+
+                // ✅ show category only when updating
+                document.getElementById("categoryBlock").style.display = "block";
+                document.getElementById("categorySelect").value = data.agent.category || "other";
+
+                document.getElementById("createBtn").textContent = "Update Agent";
+                document.getElementById("testBtn").style.display = "inline-block";
+                document.getElementById("dashBtn").style.display = "inline-block";
+                document.getElementById("msg").textContent = "You already have an agent. You can update it.";
+            }
+        }
+
+
+        document.getElementById("logoutBtn").onclick = async () => {
+            await fetch("/api/logout", { method: "POST" });
+            window.location.href = "/login";
+        };
+
+        document.getElementById("clearBtn").onclick = () => {
+            document.getElementById("agentName").value = "";
+            document.getElementById("instructions").value = "";
+            document.getElementById("msg").textContent = "";
+        };
+
+        document.getElementById("testBtn").onclick = () => {
+            if (existingAgentId) window.location.href = `/agent/${existingAgentId}/test`;
+        };
+
+        document.getElementById("dashBtn").onclick = () => {
+            if (existingAgentId) window.location.href = `/agent/${existingAgentId}/dashboard`;
+        };
+
+        document.getElementById("createBtn").onclick = async () => {
+            const msg = document.getElementById("msg");
+            msg.textContent = existingAgentId ? "Updating agent..." : "Creating agent...";
+
+            const payload = {
+                name: document.getElementById("agentName").value.trim(),
+                instructions: document.getElementById("instructions").value.trim()
+            };
+
+            // ✅ Update mode
+            if (existingAgentId) {
+                payload.category = document.getElementById("categorySelect").value;
+                const res = await fetch(`/api/agents/${existingAgentId}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                    msg.textContent = data.message || "Failed to update";
+                    return;
+                }
+                msg.textContent = "Updated ✅";
+                return;
+            }
+
+            // ✅ Create mode
+            const res = await fetch("/api/agents", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await res.json().catch(() => ({}));
+
+            if (res.status === 409) {
+                // already has an agent
+                existingAgentId = data.agent_id;
+                msg.textContent = data.message || "You already have an agent.";
+                document.getElementById("createBtn").textContent = "Update Agent";
+                document.getElementById("testBtn").style.display = "inline-block";
+                document.getElementById("dashBtn").style.display = "inline-block";
+                return;
+            }
+
+            if (!res.ok) {
+                msg.textContent = data.message || "Failed to create agent";
+                return;
+            }
+
+            existingAgentId = data.agent.id;
+            window.location.href = `/agent/${existingAgentId}/test`;
+        };
+
+        loadMe();
+        loadMyAgent();
+    </script>
+</body>
+
+</html>
