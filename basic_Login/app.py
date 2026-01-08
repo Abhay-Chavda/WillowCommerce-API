@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify, session, send_from_directory, redirect
+import json
 from functools import wraps
 import time
 import os
@@ -6,6 +7,23 @@ from dotenv import load_dotenv
 from azure.identity import DefaultAzureCredential
 from azure.ai.projects import AIProjectClient
 from azure.ai.projects.models import PromptAgentDefinition
+import re
+import jsonref
+
+#calling json file and tools
+OPENAPI_SPEC_PATH = os.path.join(os.path.dirname(__file__), "willow_openapi.json")
+
+with open(OPENAPI_SPEC_PATH, "r", encoding="utf-8") as f:
+    openapi_spec = jsonref.loads(f.read())
+
+openapi_tool = {
+    "type": "openapi",
+    "openapi": {
+        "name": "WillowCommerceAPI",
+        "spec": openapi_spec,
+        "auth": {"type": "anonymous"}
+    }
+}
 
 
 
@@ -165,25 +183,38 @@ def create_agent():
         }), 409
 
 
-    name = (data.get("name") or "").strip()
+    raw_name = (data.get("name") or "").strip()
     instructions = (data.get("instructions") or "").strip()
     
-    if not name:
+    if not raw_name:
         return jsonify({"ok": False, "message": "Agent name required"}), 400
     if not instructions:
         return jsonify({"ok": False, "message": "Agent instructions required"}), 400
     
-    agent = project_client.agents.create(
-    name=name,
+    # sanitize name
+    safe_name = re.sub(r"[^a-zA-Z0-9-]+", "-", raw_name).strip("-")[:63]
+    if not safe_name:
+        return jsonify({"ok": False, "message": "Agent name invalid. Use letters/numbers/hyphens only."}), 400
+    
+
+    print("Creating agent with name:", safe_name)
+    print("REQUEST JSON:", data)
+    print("INSTRUCTIONS LEN:", len(instructions))
+
+
+    
+    agent = project_client.agents.create_version(
+    agent_name=safe_name,
     definition=PromptAgentDefinition(
-        model=os.environ["MODEL_DEPLOYMENT_NAME"],
-        instructions=f"""{basic_instruction}.{instructions}""",
-    ),
-)
+        model = os.environ["MODEL_DEPLOYMENT_NAME"],
+        instructions = f"""{basic_instruction}.{instructions}""",
+        tools = [openapi_tool],
+    )
+    )
     
     AGENTS[agent.id] = {
         "id": agent.id,
-        "name": name,
+        "name": safe_name,
         "instructions": instructions,
         "created_by": session["user"]["username"],
         "created_at": int(time.time())

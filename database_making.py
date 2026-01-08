@@ -30,7 +30,17 @@ PRODUCT_NAMES = [
     "Wireless Mouse", "Keyboard", "Headphones", "USB Cable",
     "Power Bank", "Laptop Stand", "Backpack", "Water Bottle"
 ]
+STATUSES = [
+    "CREATED",
+"CONFIRMED",
+"PROCESSING",
+"PACKED",
+"SHIPPED",
+"OUT_FOR_DELIVERY",
+"DELIVERED",
+"COMPLETED"
 
+]
 # ---------- Helpers ----------
 
 def rand_phone():
@@ -153,18 +163,19 @@ def insert_fake_data(conn):
         order_date = rand_date_last()
         delivers_at = rand_date_next(7, order_date)
         qty = random.randint(1, 5)
+        status = random.choice(STATUSES)
 
         cur.execute("SELECT price FROM products WHERE product_id=?", (product_id,))
         price = cur.fetchone()[0]
 
         total = round(price * qty, 2)
         orders.append((oid, user_id, tenant_id, product_id, random.choice(ORDER_APPS),
-                       order_date, delivers_at, "DELIVERED", qty, total))
+                       order_date, delivers_at, status, qty, total))
 
         cur.execute("SELECT address FROM users WHERE user_id=?", (user_id,))
         address = cur.fetchone()[0]
         city, state, pin = re.findall(r"\w+", address)[-3:]
-        shipments.append((f"SHP{oid}", oid, address, city, state, int(pin), rand_tracking(), "DELIVERED"))
+        shipments.append((f"SHP{oid}", oid, address, city, state, int(pin), rand_tracking(), status))
 
     cur.executemany("""
         INSERT INTO orders VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)

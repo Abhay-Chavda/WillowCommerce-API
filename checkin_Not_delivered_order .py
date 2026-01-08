@@ -11,5 +11,6 @@ cursor = conn.cursor()
 cursor.execute("SELECT * FROM orders WHERE status != 'DELIVERED'")
 
 rows = cursor.fetchall()
+print("code is working")
 for row in rows:
     print(row)
