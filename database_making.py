@@ -160,7 +160,7 @@ def insert_fake_data(conn):
         user_id = random.randint(1, USER_COUNT)
         product_id = random.randint(1, PRODUCT_COUNT)
         tenant_id = random.choice(["u1", "u2"])
-        order_date = rand_date_last()
+        order_date = rand_date_last(10)
         delivers_at = rand_date_next(7, order_date)
         qty = random.randint(1, 5)
         status = random.choice(STATUSES)

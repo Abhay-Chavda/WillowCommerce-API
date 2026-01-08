@@ -8,7 +8,7 @@ DB_PATH = 'example.db'
 
 conn = sqlite3.connect(DB_PATH)
 cursor = conn.cursor()
-cursor.execute("SELECT * FROM orders WHERE status != 'DELIVERED'")
+cursor.execute("SELECT * FROM orders WHERE status =='PROCESSING'")
 
 rows = cursor.fetchall()
 print("code is working")
