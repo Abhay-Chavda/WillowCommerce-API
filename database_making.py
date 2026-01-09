@@ -84,7 +84,7 @@ def create_tables(conn):
 
     cur.execute("""
         CREATE TABLE IF NOT EXISTS tenants (
-            tenant_id TEXT PRIMARY KEY,
+            tenant_id VARCHAR PRIMARY KEY,
             tenant_name TEXT NOT NULL UNIQUE
         )
     """)
@@ -93,7 +93,7 @@ def create_tables(conn):
         CREATE TABLE IF NOT EXISTS orders (
             order_id INTEGER PRIMARY KEY,
             user_id INTEGER NOT NULL,
-            tenant_id TEXT NOT NULL,
+            tenant_id VARCHAR NOT NULL,
             product_id INTEGER NOT NULL,
             order_app TEXT NOT NULL,
             order_date TEXT NOT NULL,
@@ -120,6 +120,15 @@ def create_tables(conn):
             FOREIGN KEY (order_id) REFERENCES orders(order_id)
         )
     """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS labels (
+            id TEXT PRIMARY KEY,
+            tenant_id TEXT NOT NULL,
+            order_id INTEGER NOT NULL,
+            kind TEXT NOT NULL,           
+            created_at INTEGER NOT NULL,
+            pdf BLOB NOT NULL)
+        """)
 
     conn.commit()
 
@@ -161,9 +170,9 @@ def insert_fake_data(conn):
         product_id = random.randint(1, PRODUCT_COUNT)
         tenant_id = random.choice(["u1", "u2"])
         order_date = rand_date_last(10)
-        delivers_at = rand_date_next(7, order_date)
         qty = random.randint(1, 5)
         status = random.choice(STATUSES)
+        delivers_at = rand_date_next(7, order_date) if status == "DELIVERED" else None
 
         cur.execute("SELECT price FROM products WHERE product_id=?", (product_id,))
         price = cur.fetchone()[0]

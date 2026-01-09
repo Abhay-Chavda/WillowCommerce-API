@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unlock Your Potential - Warm Up Guide</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Oswald:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        /* 1. RESET & CORE SETUP */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: #0f172a; /* Slate 900 */
+            display: grid;
+            gap: 40px;
+            grid-template-columns: 1fr;
+            min-height: 100vh;
+            padding: 40px 0;
+            place-items: center;
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* 2. SLIDE CONTAINER */
+        .slide-container {
+            width: 1280px;
+            height: 720px;
+            background-color: #111827; /* Gray 900 */
+            /* Subtle mesh gradient background for depth */
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(204, 255, 0, 0.05) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(204, 255, 0, 0.05) 0px, transparent 50%);
+            border-radius: 16px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            padding: 60px;
+            color: #f3f4f6; /* Gray 100 */
+        }
+
+        /* 3. TYPOGRAPHY */
+        h1, h2, h3 {
+            font-family: 'Oswald', sans-serif;
+            text-transform: uppercase;
+            line-height: 1.1;
+        }
+
+        h1 {
+            font-size: 100px;
+            color: #fff;
+            margin-bottom: 20px;
+        }
+
+        .slide-title {
+            font-size: 48px;
+            color: #ccff00; /* Neon Lime */
+            margin-bottom: 40px;
+            width: 100%;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 20px;
+        }
+
+        h3 {
+            font-size: 28px;
+            color: #fff;
+            margin-bottom: 12px;
+        }
+
+        p, li {
+            font-size: 20px;
+            line-height: 1.6;
+            color: #d1d5db; /* Gray 300 */
+        }
+
+        /* 4. UTILITY CLASSES */
+        .text-accent {
+            color: #ccff00;
+        }
+
+        .content-area {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            width: 100%;
+        }
+
+        /* 5. LAYOUTS */
+
+        /* Title Slide */
+        .title-layout {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+            position: relative;
+            z-index: 2;
+        }
+        
+        .title-layout h1 span {
+            color: #ccff00;
+            display: block;
+        }
+
+        .title-layout .subtitle {
+            font-size: 24px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            opacity: 0.8;
+            margin-top: 20px;
+            padding-left: 5px;
+            border-left: 4px solid #ccff00;
+        }
+
+        /* Tiled Content (Icons) */
+        .tiled-content {
+            display: flex;
+            gap: 30px;
+            width: 100%;
+            height: 100%;
+            align-items: stretch;
+        }
+
+        .tile {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+
+        .tile .icon {
+            font-size: 60px;
+            color: #ccff00;
+            margin-bottom: 30px;
+        }
+
+        /* Two Column Layout */
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 60px;
+            width: 100%;
+            height: 100%;
+            align-items: center;
+        }
+        
+        .two-column.tiled > div {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 40px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .image-wrapper {
+            width: 100%;
+            height: 400px;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .image-wrapper img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain; /* Changed to contain per requirement for Image_Right */
+        }
+        
+        .tiled-images .image-wrapper img {
+             object-fit: cover;
+        }
+
+        /* Bleed Image Layout */
+        .slide-container.bleed-image-layout {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0;
+            padding: 0;
+            align-items: start;
+        }
+
+        .slide-container.bleed-image-layout > .content-container {
+            padding: 80px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            height: 100%;
+        }
+
+        .slide-container.bleed-image-layout > .image-container {
+            height: 720px;
+            width: 100%;
+        }
+
+        .slide-container.bleed-image-layout img.bleed-image-side {
+            width: 100%;
+            height: 100%;
+            max-height: 720px;
+            object-fit: cover;
+        }
+
+        /* Timeline */
+        .timeline-layout {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+            width: 100%;
+            margin-top: 40px;
+        }
+
+        .timeline-line {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.1);
+            z-index: 0;
+        }
+
+        .timeline-item {
+            position: relative;
+            z-index: 1;
+            background: #111827;
+            padding: 0 20px;
+            text-align: center;
+            width: 22%;
+        }
+
+        .timeline-dot {
+            width: 20px;
+            height: 20px;
+            background: #ccff00;
+            border-radius: 50%;
+            margin: 0 auto 20px;
+            box-shadow: 0 0 15px rgba(204, 255, 0, 0.5);
+        }
+
+        /* Quote */
+        .quote-layout blockquote {
+            font-family: 'Oswald', sans-serif;
+            font-size: 60px;
+            text-align: center;
+            line-height: 1.2;
+            margin-bottom: 30px;
+            color: #fff;
+        }
+        
+        .quote-layout cite {
+            display: block;
+            text-align: center;
+            color: #ccff00;
+            font-style: normal;
+            font-size: 24px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        /* Styled Bullets */
+        .bullet-list ul {
+            list-style: none;
+        }
+
+        .bullet-list li {
+            position: relative;
+            padding-left: 40px;
+            margin-bottom: 25px;
+            font-size: 24px;
+        }
+
+        .bullet-list li::before {
+            content: '\f058'; /* FontAwesome Check Circle */
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            position: absolute;
+            left: 0;
+            top: 4px;
+            color: #ccff00;
+            font-size: 24px;
+        }
+
+        /* Q&A */
+        .qa-layout {
+            text-align: center;
+        }
+        .qa-layout h2 {
+            font-size: 120px;
+            color: #ccff00;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Slide 1: Title Slide -->
+    <div class="slide-container" id="slide1">
+        <div class="title-layout">
+            <h1>Unlock Your<br><span>Potential</span></h1>
+            <p class="subtitle">The Science & Art of the Pre-Workout Warm-Up</p>
+        </div>
+        <!-- Decorative bg image/overlay -->
+        <div style="position: absolute; right: 0; top: 0; width: 50%; height: 100%; opacity: 0.1; background: url('http://googleusercontent.com/image_collection/image_retrieval/14904736109127587917') center/cover no-repeat; mask-image: linear-gradient(to right, transparent, black);"></div>
+    </div>
+
+    <!-- Slide 2: Section Title -->
+    <div class="slide-container" id="slide2">
+        <div class="content-area" style="align-items: center; text-align: center;">
+            <i class="fa-solid fa-person-running" style="font-size: 80px; color: #ccff00; margin-bottom: 30px;"></i>
+            <h2 style="font-size: 70px; margin-bottom: 20px;">Why We Stretch</h2>
+            <p style="font-size: 24px; max-width: 800px;">It's not just about flexibility. It's about preparing your engine for high-performance output.</p>
+        </div>
+    </div>
+
+    <!-- Slide 3: Tiled Text with Icons -->
+    <div class="slide-container" id="slide3">
+        <h2 class="slide-title">The Three Pillars of Warm-Up</h2>
+        <div class="content-area">
+            <div class="tiled-content">
+                <div class="tile">
+                    <div class="icon"><i class="fa-solid fa-bolt"></i></div>
+                    <h3>Performance</h3>
+                    <p>Activated muscles generate more force. A proper warm-up increases nerve transmission speed and reaction time.</p>
+                </div>
+                <div class="tile">
+                    <div class="icon"><i class="fa-solid fa-shield-heart"></i></div>
+                    <h3>Prevention</h3>
+                    <p>Cold muscles are prone to tears. Increasing tissue temperature improves elasticity and reduces injury risk.</p>
+                </div>
+                <div class="tile">
+                    <div class="icon"><i class="fa-solid fa-brain"></i></div>
+                    <h3>Focus</h3>
+                    <p>The warm-up is a mental transition. It allows you to dial in, visualize your goals, and leave distractions behind.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 4: Two Column Tiled Text (Dynamic vs Static) -->
+    <div class="slide-container" id="slide4">
+        <h2 class="slide-title">Dynamic vs. Static Stretching</h2>
+        <div class="content-area">
+            <div class="two-column tiled">
+                <div>
+                    <h3 class="text-accent"><i class="fa-solid fa-stopwatch"></i> Pre-Workout: Dynamic</h3>
+                    <p style="margin-bottom: 20px;"><strong>Goal:</strong> Activation & Mobility</p>
+                    <p>Involves continuous movement through a full range of motion. It mimics the activity you are about to perform.</p>
+                    <ul style="margin-top: 20px; list-style-position: inside; padding-left: 20px;">
+                        <li>Leg Swings</li>
+                        <li>Arm Circles</li>
+                        <li>Walking Lunges</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 style="color: #9ca3af;"><i class="fa-solid fa-pause"></i> Post-Workout: Static</h3>
+                    <p style="margin-bottom: 20px;"><strong>Goal:</strong> Relaxation & Length</p>
+                    <p>Holding a stretch for 15-60 seconds. Best used during cool-down to return muscles to resting length.</p>
+                    <ul style="margin-top: 20px; list-style-position: inside; padding-left: 20px;">
+                        <li>Hamstring Hold</li>
+                        <li>Calf Stretch</li>
+                        <li>Chest Opener</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 5: Bleed Image Right (The Lunge) -->
+    <div class="slide-container bleed-image-layout" id="slide5">
+        <div class="content-container">
+            <h2 class="slide-title" style="border: none;">The Power Lunge</h2>
+            <div class="content-area">
+                <h3 class="text-accent">Unlock Your Hips</h3>
+                <p style="margin-bottom: 25px;">The dynamic lunge is the king of lower-body preparation. It simultaneously engages the glutes, quads, and hamstrings while opening up tight hip flexors.</p>
+                
+                <h3>Key Technique</h3>
+                <p>Keep your chest up and core engaged. Step forward confidently, lowering your back knee towards the ground without touching it. Drive back up through the front heel.</p>
+            </div>
+        </div>
+        <div class="image-container">
+            <img class="bleed-image-side" src="http://googleusercontent.com/image_collection/image_retrieval/1658915782436453781" alt="Athlete performing a dynamic lunge in a gym with cinematic lighting">
+        </div>
+    </div>
+
+    <!-- Slide 6: Image Right Text Left (Upper Body) -->
+    <div class="slide-container" id="slide6">
+        <h2 class="slide-title">Don't Neglect the Upper Body</h2>
+        <div class="content-area">
+            <div class="two-column">
+                <div class="bullet-list">
+                    <p style="margin-bottom: 30px;">Even for runners, upper body mobility is crucial for balance and breathing mechanics.</p>
+                    <ul>
+                        <li><strong>Arm Circles:</strong> Gradually increase size to warm up the shoulder capsule.</li>
+                        <li><strong>Thoracic Twists:</strong> Mobilize the mid-back to prevent lower back strain.</li>
+                        <li><strong>Chest Openers:</strong> Counteract the slouch of daily desk work.</li>
+                        <li><strong>Neck Rolls:</strong> Release tension to improve blood flow to the head.</li>
+                    </ul>
+                </div>
+                <div class="image-wrapper">
+                    <img src="http://googleusercontent.com/image_collection/image_retrieval/8441271475897379068" alt="Fitness model stretching shoulder and arm across chest">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 7: Tiled Images (Key Areas) -->
+    <div class="slide-container" id="slide7">
+        <h2 class="slide-title">Visualizing Success</h2>
+        <div class="content-area">
+            <div class="tiled-content tiled-images">
+                <div class="tile" style="padding: 15px; background: none; border: none;">
+                    <div class="image-wrapper" style="height: 300px; margin-bottom: 20px;">
+                        <img src="http://googleusercontent.com/image_collection/image_retrieval/14390535354257213154" alt="Runner stretching hamstrings on track">
+                    </div>
+                    <h3>Lower Body</h3>
+                    <p>Target quads, hamstrings, and calves.</p>
+                </div>
+                <div class="tile" style="padding: 15px; background: none; border: none;">
+                    <div class="image-wrapper" style="height: 300px; margin-bottom: 20px;">
+                        <img src="http://googleusercontent.com/image_collection/image_retrieval/10378939365042200796" alt="Group of people doing warm up exercises">
+                    </div>
+                    <h3>Core Activation</h3>
+                    <p>Engage abs and lower back stability.</p>
+                </div>
+                <div class="tile" style="padding: 15px; background: none; border: none;">
+                    <div class="image-wrapper" style="height: 300px; margin-bottom: 20px;">
+                        <img src="http://googleusercontent.com/image_collection/image_retrieval/14904736109127587917" alt="Athlete tying shoelaces focused">
+                    </div>
+                    <h3>Mental Prep</h3>
+                    <p>Visualize your workout goals.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 8: Timeline (The Routine) -->
+    <div class="slide-container" id="slide8">
+        <h2 class="slide-title">The 5-Minute Flow</h2>
+        <div class="content-area">
+            <div class="timeline-layout">
+                <div class="timeline-line"></div>
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <h3>Minute 1</h3>
+                    <p class="text-accent">Pulse Raiser</p>
+                    <p style="font-size: 16px; margin-top: 10px;">Jumping jacks or light jog to increase heart rate.</p>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <h3>Minute 2</h3>
+                    <p class="text-accent">Joint Mob</p>
+                    <p style="font-size: 16px; margin-top: 10px;">Rolling ankles, knees, hips, and shoulders.</p>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <h3>Minute 3-4</h3>
+                    <p class="text-accent">Dynamic Stretch</p>
+                    <p style="font-size: 16px; margin-top: 10px;">Walking lunges, leg swings, and torso twists.</p>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <h3>Minute 5</h3>
+                    <p class="text-accent">Activation</p>
+                    <p style="font-size: 16px; margin-top: 10px;">Short bursts of speed or explosive jumps.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 9: Quote -->
+    <div class="slide-container" id="slide9">
+        <div class="content-area quote-layout">
+            <blockquote>"The workout begins before you move. Respect the warm-up."</blockquote>
+            <cite>— Elite Performance Principles</cite>
+        </div>
+    </div>
+
+    <!-- Slide 10: Q&A -->
+    <div class="slide-container" id="slide10">
+        <div class="content-area qa-layout">
+            <h2>Q & A</h2>
+            <p style="font-size: 32px; color: #fff;">Any questions about your routine?</p>
+            <div style="margin-top: 50px; font-size: 20px; color: #9ca3af;">
+                <i class="fa-solid fa-envelope" style="margin-right: 10px; color: #ccff00;"></i> coach@performance.com
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

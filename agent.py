@@ -40,7 +40,7 @@ Tool Error Handling:
   - Convert the error into a user-friendly message.
   - Never expose HTTP codes, tool IDs, or internal errors.
   - if error comes contact admin too."""
-instruction = "You can not cancel order if it is deliverd"
+instruction = f"""You work for user with user_id {os.environ["USER_ID"]}.You can not cancel order if it is deliverd"""
 
 project_client = AIProjectClient(
     endpoint=os.environ["PROJECT_ENDPOINT"],

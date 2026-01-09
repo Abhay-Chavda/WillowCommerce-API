@@ -1,0 +1,235 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Order Action Center</title>
+  <style>
+    body { font-family: system-ui, Arial; background:#0b1220; color:#e8eefc; margin:0; }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    .grid { display:grid; gap:14px; grid-template-columns: 1fr; }
+    @media (min-width: 980px){ .grid { grid-template-columns: 1.2fr .8fr; } }
+    .card { background:#111b2e; border:1px solid #223055; border-radius:14px; padding:18px; }
+    .title { font-size: 18px; font-weight: 800; margin:0 0 8px; }
+    .muted { opacity:0.8; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .btn { border:0; padding:10px 14px; border-radius:12px; cursor:pointer; font-weight:700; }
+    .btn-primary { background:#4b7dff; color:white; }
+    .btn-muted { background:#223055; color:#e8eefc; }
+    .btn-danger { background:#ff4b4b; color:white; }
+    .hidden { display:none; }
+    .pill { display:inline-block; padding:4px 10px; border-radius:999px; background:#223055; }
+    pre { white-space:pre-wrap; word-break:break-word; background:#0b1220; border:1px solid #223055; padding:12px; border-radius:12px; }
+    ul { margin: 8px 0 0 18px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h2 style="margin:0 0 6px;">Order Action Center</h2>
+    <div class="muted">Everything related to this order (labels + human handoff) is shown here.</div>
+
+    <div class="grid" style="margin-top:14px;">
+      <!-- Left column -->
+      <div class="card">
+        <div class="row" style="justify-content:space-between;">
+          <div>
+            <div class="title">Order Summary</div>
+            <div class="muted">Order ID: <b id="orderId"></b></div>
+          </div>
+          <div class="row">
+            <span class="pill" id="modePill"></span>
+            <button class="btn btn-muted" id="backBtn">Back</button>
+          </div>
+        </div>
+
+        <div id="orderBox" class="muted" style="margin-top:10px;">Loading order…</div>
+      </div>
+
+      <!-- Right column -->
+      <div class="card" id="labelCard">
+        <div class="title">Return / Replacement Label</div>
+        <div class="muted" id="labelExplain"></div>
+
+        <div style="margin-top:10px;">
+          <div class="muted"><b>How to use:</b></div>
+          <ul class="muted">
+            <li>Generate the label PDF</li>
+            <li>Print it and attach it to the package</li>
+            <li>Drop it at the courier pickup/drop-off point</li>
+          </ul>
+        </div>
+
+        <div class="row" style="margin-top:12px;">
+          <button class="btn btn-primary" id="generateBtn">Generate Label PDF</button>
+          <button class="btn btn-muted hidden" id="viewBtn">View</button>
+          <button class="btn btn-muted hidden" id="downloadBtn">Download</button>
+        </div>
+        <div id="labelStatus" class="muted" style="margin-top:10px;"></div>
+      </div>
+
+      <div class="card hidden" id="handoffCard">
+        <div class="title">Human Action Required</div>
+        <div class="muted">AI could not complete the action. A human should handle the steps below.</div>
+
+        <div style="margin-top:12px;">
+          <div class="muted"><b>Problem</b></div>
+          <div id="problemText" style="margin-top:6px;"></div>
+        </div>
+
+        <div style="margin-top:12px;">
+          <div class="muted"><b>Why AI can’t do it</b></div>
+          <div id="whyText" style="margin-top:6px;"></div>
+        </div>
+
+        <div style="margin-top:12px;">
+          <div class="muted"><b>What human should do</b></div>
+          <ul id="humanSteps" class="muted"></ul>
+        </div>
+
+        <div style="margin-top:12px;">
+          <div class="muted"><b>Context (for human)</b></div>
+          <pre id="contextBox"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const PAGE_JSON = '{{ {"orderId": order_id, "mode": mode, "caseId": case_id, "labelType": label_type} | tojson }}';
+    window.PAGE = JSON.parse(PAGE_JSON);
+    const { orderId, mode, caseId, labelType } = window.PAGE;
+
+
+    const orderIdEl = document.getElementById("orderId");
+    const orderBox = document.getElementById("orderBox");
+    const modePill = document.getElementById("modePill");
+
+    const labelCard = document.getElementById("labelCard");
+    const labelExplain = document.getElementById("labelExplain");
+    const labelStatus = document.getElementById("labelStatus");
+    const generateBtn = document.getElementById("generateBtn");
+    const viewBtn = document.getElementById("viewBtn");
+    const downloadBtn = document.getElementById("downloadBtn");
+
+    const handoffCard = document.getElementById("handoffCard");
+    const problemText = document.getElementById("problemText");
+    const whyText = document.getElementById("whyText");
+    const humanSteps = document.getElementById("humanSteps");
+    const contextBox = document.getElementById("contextBox");
+
+    orderIdEl.textContent = orderId;
+    modePill.textContent = mode.toUpperCase();
+
+    document.getElementById("backBtn").onclick = () => history.back();
+
+    function showOrder(order){
+      // Adjust fields based on your DB structure
+      const items = order.items ? order.items.map(i => `${i.name} x${i.qty}`).join(", ") : "(items not available)";
+      orderBox.innerHTML = `
+        <div><b>Status:</b> ${order.status || "-"}</div>
+        <div><b>Customer:</b> ${order.customer_name || "-"} (${order.customer_email || "-"})</div>
+        <div><b>Items:</b> ${items}</div>
+        <div><b>Total:</b> ${order.total_price || "-"}</div>
+        <div><b>Shipping:</b> ${order.shipping_address || "-"}</div>
+      `;
+    }
+
+    async function loadOrder(){
+      const res = await fetch(`/api/orders/${orderId}/summary`);
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        orderBox.textContent = data.message || "Failed to load order.";
+        return;
+      }
+      showOrder(data.order);
+    }
+
+    function setupLabelSection(){
+      if (mode === "handoff") {
+        labelCard.classList.add("hidden");
+        return;
+      }
+      labelExplain.innerHTML =
+        labelType === "replacement"
+          ? "This label is for sending the item back so we can process your <b>replacement</b>."
+          : "This label is for sending the item back so we can process your <b>return/refund</b>.";
+    }
+
+    async function generateLabel(){
+      labelStatus.textContent = "Generating label…";
+      generateBtn.disabled = true;
+
+      try {
+        const res = await fetch(`/api/orders/${orderId}/label`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reason: labelType })
+        });
+        const data = await res.json();
+
+        if (!res.ok || !data.ok) {
+          generateBtn.disabled = false;
+          labelStatus.textContent = data.message || "Could not generate label.";
+          return;
+        }
+
+        viewBtn.classList.remove("hidden");
+        downloadBtn.classList.remove("hidden");
+
+        viewBtn.onclick = () => window.open(data.label.view_url, "_blank");
+        downloadBtn.onclick = () => window.location.href = data.label.download_url;
+
+        labelStatus.textContent = "Label generated ✅ You can view or download it now.";
+      } catch (e) {
+        generateBtn.disabled = false;
+        labelStatus.textContent = "Network error while generating label.";
+      }
+    }
+
+    function setupHandoffSection(){
+      if (mode === "label") return;
+      if (!caseId) {
+        handoffCard.classList.remove("hidden");
+        problemText.textContent = "Case details missing (no case_id provided).";
+        whyText.textContent = "AI handoff needs a case_id to display human instructions.";
+        humanSteps.innerHTML = "<li>Open the order in admin panel and review.</li>";
+        contextBox.textContent = "{}";
+        return;
+      }
+      handoffCard.classList.remove("hidden");
+      loadCase(caseId);
+    }
+
+    async function loadCase(cid){
+      const res = await fetch(`/api/support/cases/${encodeURIComponent(cid)}`);
+      const data = await res.json();
+
+      if (!res.ok || !data.ok) {
+        problemText.textContent = data.message || "Failed to load case.";
+        whyText.textContent = "-";
+        humanSteps.innerHTML = "<li>Review order and contact customer.</li>";
+        contextBox.textContent = "{}";
+        return;
+      }
+
+      const c = data.case;
+      problemText.textContent = c.ai_summary || "-";
+      whyText.textContent = c.why_ai_cant || "-";
+
+      humanSteps.innerHTML = "";
+      (c.human_action || []).forEach(step => {
+        const li = document.createElement("li");
+        li.textContent = step;
+        humanSteps.appendChild(li);
+      });
+
+      contextBox.textContent = JSON.stringify(c.context || {}, null, 2);
+    }
+
+    // Init
+    loadOrder();
+    setupLabelSection();
+    setupHandoffSection();
+    generateBtn.onclick = generateLabel;
+  </script>
+</body>
+</html>

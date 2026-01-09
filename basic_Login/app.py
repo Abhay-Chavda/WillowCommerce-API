@@ -9,6 +9,10 @@ from azure.ai.projects import AIProjectClient
 from azure.ai.projects.models import PromptAgentDefinition
 import re
 import jsonref
+import io
+import sqlite3
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import StreamingResponse
 
 #calling json file and tools
 OPENAPI_SPEC_PATH = os.path.join(os.path.dirname(__file__), "willow_openapi.json")
@@ -76,6 +80,7 @@ USERS = {
     "abhay": {"password": "1234", "role": "admin"},
     "user1": {"password": "1111", "role": "user"},
     "user2": {"password": "2222", "role": "user"},
+    "user3": {"password": "3333", "role": "user"},
 }
 
 
@@ -127,6 +132,37 @@ def agent_dashboard_page(agent_id):
     if agent_id not in AGENTS:
         return "Agent not found", 404
     return send_from_directory("public", "agent_dashboard.html")
+
+#----------------- Label Printing APIS ----------------
+DB_PATH = "example.db"
+def get_db_connection():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+@app.get("/labels/{label_id}/view")
+def view_label(label_id: str):
+    conn = get_db_connection()
+    row = conn.execute("SELECT pdf FROM labels WHERE id = ?", (label_id,)).fetchone()
+    conn.close()
+    if not row:
+        raise HTTPException(status_code=404, detail="Label not found")
+
+    return StreamingResponse(io.BytesIO(row["pdf"]), media_type="application/pdf")
+
+@app.get("/labels/{label_id}/download")
+def download_label(label_id: str):
+    conn = get_db_connection()
+    row = conn.execute("SELECT pdf, order_id FROM labels WHERE id = ?", (label_id,)).fetchone()
+    conn.close()
+    if not row:
+        raise HTTPException(status_code=404, detail="Label not found")
+
+    return StreamingResponse(
+        io.BytesIO(row["pdf"]),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="return_label_order_{row["order_id"]}.pdf"'}
+    )
 
 
 # ---------------- Auth APIs ----------------
@@ -182,9 +218,8 @@ def create_agent():
             "agent_id": existing_id
         }), 409
 
-
     raw_name = (data.get("name") or "").strip()
-    instructions = (data.get("instructions") or "").strip()
+    instructions = f"""You work for user with user_id {username}.(data.get("instructions") or "").strip()"""
     
     if not raw_name:
         return jsonify({"ok": False, "message": "Agent name required"}), 400
