@@ -47,12 +47,19 @@ project_client = AIProjectClient(
     credential=DefaultAzureCredential(),
 )
 
-agent = project_client.agents.create(
-    name=os.environ["AGENT_NAME"],
-    definition=PromptAgentDefinition(
-        model=os.environ["MODEL_DEPLOYMENT_NAME"],
-        instructions=f"""{basic_instruction}.{instruction}""",
-    ),
+myAgent = "willowcommerce-user1"
+# Get an existing agent
+agent = project_client.agents.get(agent_name=myAgent)
+print(f"Retrieved agent: {agent.name}")
+
+
+openai_client = project_client.get_openai_client()
+
+# Reference the agent to get a response
+response = openai_client.responses.create(
+    input=[{"role": "user", "content": "I want to return order with order_id "}],
+    extra_body={"agent": {"name": agent.name, "type": "agent_reference"}},
 )
 
-print(agent)
+print(f"Response output: {response.output_text}")
+

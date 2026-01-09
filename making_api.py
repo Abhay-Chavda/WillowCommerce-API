@@ -3,7 +3,6 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 import sqlite3
 from datetime import datetime
-import requests
 import os
 import uuid
 import httpx
