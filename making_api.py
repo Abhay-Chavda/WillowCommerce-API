@@ -11,8 +11,11 @@ import time
 app = FastAPI(title="WillowCommerce API Example")
 DB_PATH = "example.db"
 
+uniuni_url = "https://prm-api.qa.uniuni.com/orders/printlabel"
+token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vcHJtLWFwaS51bml1bmkuY29tL3N0b3JlYXV0aC9jdXN0b21lcnRva2VuIiwiaWF0IjoxNzY3OTY3NTAzLCJuYmYiOjE3Njc5Njc1MDMsImV4cCI6MTc2ODA1MzkwMywiY291bnRyeSI6IlVTIiwicGFydG5lcl9pZCI6Mzc5LCJuYW1lIjoiSGFydmljIGludGVybmF0aW9uYWwiLCJhcGlfdmVyc2lvbiI6IjIifQ.UgCM4-u-OQsuGTVkSWxY0YzYn0-yp8NCtNicXtGwGW0"
+
 headers = {
-    "Authorization": f"Bearer {os.environ["TOKEN"]}",
+    "Authorization": f"Bearer {token}",
     "Content-Type": "application/pdf"
 }
 
@@ -91,7 +94,7 @@ def replacementOrder(order_id: int,tenant_id:str,payload: ReplacementReuqest):
     try:
         with httpx.Client(timeout=30) as client:
             r = client.post(
-                os.environ["UNIUNI_PRINTLABEL_URL"],headers=headers,
+                uniuni_url,headers=headers,
                 json={
                     "packageId": package_id,
                     "labelType": 6,
@@ -160,7 +163,7 @@ def initiate_refund(order_id: int,tenant_id:str, payload: RefundRequest):
     try:
         with httpx.Client(timeout=30) as client:
             r = client.post(
-                os.environ["UNIUNI_PRINTLABEL_URL"],headers=headers,
+            uniuni_url,headers=headers,
                 json={
                     "packageId": package_id,
                     "labelType": 6,
