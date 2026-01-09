@@ -11,6 +11,11 @@ import time
 app = FastAPI(title="WillowCommerce API Example")
 DB_PATH = "example.db"
 
+headers = {
+    "Authorization": f"Bearer {os.environ["TOKEN"]}",
+    "Content-Type": "application/pdf"
+}
+
 @app.get("/openapi-3.0.json", include_in_schema=False)
 def openapi_30(request: Request):
     schema = app.openapi()
@@ -86,7 +91,7 @@ def replacementOrder(order_id: int,tenant_id:str,payload: ReplacementReuqest):
     try:
         with httpx.Client(timeout=30) as client:
             r = client.post(
-                os.environ["UNIUNI_PRINTLABEL_URL"],
+                os.environ["UNIUNI_PRINTLABEL_URL"],headers=headers,
                 json={
                     "packageId": package_id,
                     "labelType": 6,
@@ -155,7 +160,7 @@ def initiate_refund(order_id: int,tenant_id:str, payload: RefundRequest):
     try:
         with httpx.Client(timeout=30) as client:
             r = client.post(
-                os.environ["UNIUNI_PRINTLABEL_URL"],
+                os.environ["UNIUNI_PRINTLABEL_URL"],headers=headers,
                 json={
                     "packageId": package_id,
                     "labelType": 6,
