@@ -139,7 +139,7 @@ def replacementOrder(order_id: int,tenant_id:str,payload: ReplacementReuqest):
 @app.post("/orders/{tenant_id}/{order_id}/return")
 def initiate_refund(order_id: int,tenant_id:str, payload: RefundRequest):
     conn = get_db_connection()
-    row = conn.execute("SELECT status, delivers_at FROM orders WHERE order_id = ? AND user_id = ?", (order_id,tenant_id)).fetchone()
+    row = conn.execute("SELECT status, delivers_at FROM orders WHERE order_id = ? AND tenant_id = ?", (order_id,tenant_id)).fetchone()
     if not row:
         conn.close()
         raise HTTPException(status_code=404, detail="Order not found")
