@@ -13,6 +13,7 @@ import io
 import sqlite3
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse
+import json
 
 #calling json file and tools
 OPENAPI_SPEC_PATH = os.path.join(os.path.dirname(__file__), "willow_openapi.json")
@@ -28,6 +29,47 @@ openapi_tool = {
         "auth": {"type": "anonymous"}
     }
 }
+
+#-------------- Functions ------------------
+def extract_label_links_from_foundry_response(resp):
+    """
+    Looks through resp.output for tool_result items and extracts label URLs if present.
+    Returns (view_url, download_url) or (None, None).
+    """
+    view_url = None
+    download_url = None
+
+    output = getattr(resp, "output", None) or []
+    for item in output:
+        if item.get("type") != "tool_result":
+            continue
+
+        content = item.get("content") or {}
+        label = content.get("label") or {}
+
+        view_url = label.get("view_url")
+        download_url = label.get("download_url")
+
+        if view_url or download_url:
+            break
+
+    return view_url, download_url
+
+def extract_label_links(response):
+    view_url = None
+    download_url = None
+
+    for item in getattr(response, "output", []) or []:
+        if item.get("type") == "tool_result":
+            content = item.get("content") or {}
+            label = content.get("label") or {}
+            view_url = label.get("view_url")
+            download_url = label.get("download_url")
+            if view_url or download_url:
+                break
+
+    return view_url, download_url
+
 
 
 
@@ -132,37 +174,6 @@ def agent_dashboard_page(agent_id):
     if agent_id not in AGENTS:
         return "Agent not found", 404
     return send_from_directory("public", "agent_dashboard.html")
-
-#----------------- Label Printing APIS ----------------
-DB_PATH = "example.db"
-def get_db_connection():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
-
-@app.get("/labels/{label_id}/view")
-def view_label(label_id: str):
-    conn = get_db_connection()
-    row = conn.execute("SELECT pdf FROM labels WHERE id = ?", (label_id,)).fetchone()
-    conn.close()
-    if not row:
-        raise HTTPException(status_code=404, detail="Label not found")
-
-    return StreamingResponse(io.BytesIO(row["pdf"]), media_type="application/pdf")
-
-@app.get("/labels/{label_id}/download")
-def download_label(label_id: str):
-    conn = get_db_connection()
-    row = conn.execute("SELECT pdf, order_id FROM labels WHERE id = ?", (label_id,)).fetchone()
-    conn.close()
-    if not row:
-        raise HTTPException(status_code=404, detail="Label not found")
-
-    return StreamingResponse(
-        io.BytesIO(row["pdf"]),
-        media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="return_label_order_{row["order_id"]}.pdf"'}
-    )
 
 
 # ---------------- Auth APIs ----------------
@@ -284,14 +295,14 @@ def test_agent(agent_id):
         return jsonify({"ok": False, "message": "Message required"}), 400
 
     # Store conversation
-    if agent_id not in AGENT_MESSAGES:
-        AGENT_MESSAGES[agent_id] = []
+    AGENT_MESSAGES.setdefault(agent_id, [])
     AGENT_MESSAGES[agent_id].append({"role": "user", "content": user_msg})
+
 
     #agent call and reply
     myAgent = agent["name"]
 
-    agent = project_client.agents.get(agent_name=myAgent)
+    agent_obj = project_client.agents.get(agent_name=myAgent)
     print(f"Retrieved agent: {agent.name}")
 
     openai_client = project_client.get_openai_client()
@@ -299,13 +310,34 @@ def test_agent(agent_id):
     # Reference the agent to get a response
     response = openai_client.responses.create(
         input=[{"role": "user", "content": user_msg}],
-        extra_body={"agent": {"name": agent.name, "type": "agent_reference"}},
+        extra_body={"agent": {"name": agent_obj.name, "type": "agent_reference"}},
     )
 
-    reply = response.output_text
+    reply = response.output_text or ""
     AGENT_MESSAGES[agent_id].append({"role": "assistant", "content": reply})
 
-    return jsonify({"ok": True, "reply": reply})
+    # ✅ Extract label URLs from tool_result (not from reply text)
+    view_url, download_url = extract_label_links_from_foundry_response(response)
+    import json
+    print(json.dumps(response.output, indent=2))
+
+    TOOL_BASE = "https://willowcommerce-api.onrender.com"
+    
+    links = []
+    if view_url:
+            links.append({
+            "text": "View Label PDF",
+            "url": view_url if view_url.startswith("http") else TOOL_BASE + view_url
+        })
+    if download_url:
+            links.append({
+            "text": "Download Label PDF",
+            "url": download_url if download_url.startswith("http") else TOOL_BASE + download_url
+        })
+
+    return jsonify({"ok": True, 
+                    "reply": reply, 
+                    "links": links})
 
 
 @app.get("/api/agents/<agent_id>/messages")

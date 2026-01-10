@@ -1,24 +1,98 @@
 <!doctype html>
 <html>
+
 <head>
   <meta charset="utf-8" />
   <title>Test Agent</title>
   <style>
-    body { margin:0; font-family: Arial, sans-serif; background:#f6f7fb; }
-    .topbar { background:#fff; padding:14px 24px; display:flex; justify-content:space-between; border-bottom:1px solid #e5e7eb; }
-    .wrap { max-width: 980px; margin: 24px auto; padding: 0 16px; }
-    .card { background:#fff; border-radius:16px; padding:16px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
-    .chat { height: 360px; overflow:auto; border:1px solid #e5e7eb; border-radius:12px; padding:12px; background:#fafafa; }
-    .msg { margin: 8px 0; padding: 10px 12px; border-radius: 12px; max-width: 80%; }
-    .user { background:#dbeafe; margin-left:auto; }
-    .bot { background:#e5e7eb; }
-    .row { display:flex; gap:10px; margin-top:12px; }
-    input { flex:1; padding:10px; border-radius:10px; border:1px solid #e5e7eb; }
-    button { padding:10px 16px; border-radius:10px; border:none; cursor:pointer; background:#2563eb; color:#fff; }
-    .btn2 { background:#111827; }
-    .logout { background:transparent; border:none; color:#ef4444; cursor:pointer; font-weight:600; }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f6f7fb;
+    }
+
+    .topbar {
+      background: #fff;
+      padding: 14px 24px;
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .wrap {
+      max-width: 980px;
+      margin: 24px auto;
+      padding: 0 16px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    }
+
+    .chat {
+      height: 360px;
+      overflow: auto;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 12px;
+      background: #fafafa;
+    }
+
+    .msg {
+      margin: 8px 0;
+      padding: 10px 12px;
+      border-radius: 12px;
+      max-width: 80%;
+    }
+
+    .user {
+      background: #dbeafe;
+      margin-left: auto;
+    }
+
+    .bot {
+      background: #e5e7eb;
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    input {
+      flex: 1;
+      padding: 10px;
+      border-radius: 10px;
+      border: 1px solid #e5e7eb;
+    }
+
+    button {
+      padding: 10px 16px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      background: #2563eb;
+      color: #fff;
+    }
+
+    .btn2 {
+      background: #111827;
+    }
+
+    .logout {
+      background: transparent;
+      border: none;
+      color: #ef4444;
+      cursor: pointer;
+      font-weight: 600;
+    }
   </style>
 </head>
+
 <body>
   <div class="topbar">
     <div>
@@ -58,15 +132,48 @@
       if (res.ok) document.getElementById("agentTitle").textContent = `Test: ${data.agent.name}`;
     }
 
-    function addMsg(role, text) {
+    function addMsg(role, text, links = []) {
       const chat = document.getElementById("chat");
       const div = document.createElement("div");
       div.className = `msg ${role === "user" ? "user" : "bot"}`;
-      div.textContent = text;
+
+      // message text
+      const p = document.createElement("div");
+      p.textContent = text;
+      div.appendChild(p);
+
+      // optional links
+      if (links && links.length) {
+        const linkRow = document.createElement("div");
+        linkRow.style.marginTop = "10px";
+        linkRow.style.display = "flex";
+        linkRow.style.gap = "8px";
+        linkRow.style.flexWrap = "wrap";
+
+        links.forEach(l => {
+          const a = document.createElement("a");
+          a.href = l.url;
+          a.target = "_blank";
+          a.rel = "noopener noreferrer";
+          a.textContent = l.text || l.url;
+
+          a.style.padding = "8px 10px";
+          a.style.borderRadius = "10px";
+          a.style.background = "#fff";
+          a.style.border = "1px solid #e5e7eb";
+          a.style.color = "#111827";
+          a.style.textDecoration = "none";
+          a.style.fontWeight = "600";
+
+          linkRow.appendChild(a);
+        });
+
+        div.appendChild(linkRow);
+      }
+
       chat.appendChild(div);
       chat.scrollTop = chat.scrollHeight;
     }
-
     async function send() {
       const input = document.getElementById("input");
       const text = input.value.trim();
@@ -76,12 +183,12 @@
 
       const res = await fetch(`/api/agents/${agentId}/test`, {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text })
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) { addMsg("bot", data.message || "Error"); return; }
-      addMsg("bot", data.reply);
+      addMsg("bot", data.reply,data.links || []);
     }
 
     document.getElementById("sendBtn").onclick = send;
@@ -102,4 +209,5 @@
     loadAgent();
   </script>
 </body>
+
 </html>

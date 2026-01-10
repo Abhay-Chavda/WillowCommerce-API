@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse,StreamingResponse
 from pydantic import BaseModel
 import sqlite3
 from datetime import datetime
@@ -7,10 +7,13 @@ import os
 import uuid
 import httpx
 import time
+import io
+
 
 app = FastAPI(title="WillowCommerce API Example")
 DB_PATH = "example.db"
 
+BASE_URL = ("https://willowcommerce-api.onrender.com").rstrip("/")
 uniuni_url = "https://prm-api.qa.uniuni.com/orders/printlabel"
 token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vcHJtLWFwaS51bml1bmkuY29tL3N0b3JlYXV0aC9jdXN0b21lcnRva2VuIiwiaWF0IjoxNzY3OTY3NTAzLCJuYmYiOjE3Njc5Njc1MDMsImV4cCI6MTc2ODA1MzkwMywiY291bnRyeSI6IlVTIiwicGFydG5lcl9pZCI6Mzc5LCJuYW1lIjoiSGFydmljIGludGVybmF0aW9uYWwiLCJhcGlfdmVyc2lvbiI6IjIifQ.UgCM4-u-OQsuGTVkSWxY0YzYn0-yp8NCtNicXtGwGW0"
 
@@ -26,6 +29,9 @@ def openapi_30(request: Request):
     base_url = str(request.base_url).rstrip("/")
     schema["servers"] = [{"url": base_url}]
     return JSONResponse(schema)
+
+
+#-----------Functions-------------------
 
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH)
@@ -43,6 +49,33 @@ class RefundRequest(BaseModel):
 class ReplacementReuqest(BaseModel):
     reason: str
 
+#------------ label printing APIs ------------------
+@app.get("/labels/{label_id}/view")
+def view_label(label_id: str):
+    conn = get_db_connection()
+    row = conn.execute("SELECT pdf FROM labels WHERE id = ?", (label_id,)).fetchone()
+    conn.close()
+    if not row:
+        raise HTTPException(status_code=404, detail="Label not found")
+
+    return StreamingResponse(io.BytesIO(row["pdf"]), media_type="application/pdf")
+
+@app.get("/labels/{label_id}/download")
+def download_label(label_id: str):
+    conn = get_db_connection()
+    row = conn.execute("SELECT pdf, order_id FROM labels WHERE id = ?", (label_id,)).fetchone()
+    conn.close()
+    if not row:
+        raise HTTPException(status_code=404, detail="Label not found")
+
+    return StreamingResponse(
+        io.BytesIO(row["pdf"]),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="return_label_order_{row["order_id"]}.pdf"'}
+    )
+
+
+#------------- APIS -----------------
 @app.get("/health")
 def health_check():
     return {"status": "healthy"}
@@ -131,8 +164,8 @@ def replacementOrder(order_id: int,tenant_id:str,payload: ReplacementReuqest):
         "reason": payload.reason,
         "label": {
             "label_id": label_id,
-            "view_url": f"/labels/{label_id}/view",
-            "download_url": f"/labels/{label_id}/download"
+            "view_url": f"{BASE_URL}/labels/{label_id}/view",
+            "download_url": f"{BASE_URL}/labels/{label_id}/download"
         }
     }
 
@@ -200,8 +233,8 @@ def initiate_refund(order_id: int,tenant_id:str, payload: RefundRequest):
         "reason": payload.reason,
         "label": {
             "label_id": label_id,
-            "view_url": f"/labels/{label_id}/view",
-            "download_url": f"/labels/{label_id}/download"
+            "view_url": f"{BASE_URL}/labels/{label_id}/view",
+            "download_url": f"{BASE_URL}/labels/{label_id}/download"
         }
     }
 
