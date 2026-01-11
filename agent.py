@@ -13,7 +13,7 @@ project_client = AIProjectClient(
     credential=DefaultAzureCredential(),
 )
 
-myAgent = "willowcommerce-user1"
+myAgent = "willowcommerce-user2"
 agent = project_client.agents.get(agent_name=myAgent)
 print(f"Retrieved agent: {agent.name}")
 agent_id = agent.id

@@ -316,3 +316,11 @@ def initiate_refund(tenant_id: str, order_id: int, payload: RefundRequest):
 @app.post("/orders/{tenant_id}/{order_id}/humancontact")
 def human_contact(tenant_id: str, order_id: int):
     return {"ok": True, "message": f"Human contact achieved for tenant {tenant_id}", "order_id": order_id}
+
+@app.get("/labels/{order_id}/{tenant_id}/get_label")
+def get_label_id(order_id: int, tenant_id: str):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT id FROM labels WHERE order_id = %s AND tenant_id = %s", (order_id, tenant_id))
+    label_id = cur.fetchone()
+    return {"ok":True, "label_id":label_id}
