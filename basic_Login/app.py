@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, session, send_from_directory, redirect
+from flask import Flask, request, jsonify, session, send_from_directory, redirect,Response
 import json
 from functools import wraps
 import time
@@ -11,6 +11,7 @@ import re
 import jsonref
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse
+import requests
 
 
 #calling json file and tools
@@ -231,6 +232,36 @@ def my_agent():
     return jsonify({"ok": True, "agent": AGENTS.get(agent_id)})
 
 
+
+# ------------------- Label APIs ---------------
+@app.get("/api/label/<label_id>.pdf")
+@require_auth
+def get_label_pdf(label_id):
+    # --- Call your label API that returns PDF bytes ---
+    label_api_url = "https://prm-api.qa.uniuni.com/orders/printlabel"  
+    headers = {
+        "Authorization": f"Bearer {"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vcHJtLWFwaS5xYS51bml1bmkuY29tL3N0b3JlYXV0aC9jdXN0b21lcnRva2VuIiwiaWF0IjoxNzY4MDQ5MzczLCJuYmYiOjE3NjgwNDkzNzMsImV4cCI6MTc2ODEzNTc3MywiY291bnRyeSI6IlVTIiwicGFydG5lcl9pZCI6Mzc5LCJuYW1lIjoiSGFydmljIGludGVybmF0aW9uYWwiLCJhcGlfdmVyc2lvbiI6IjIifQ.prjM3Mrz3ZI8CFCOJaef5nEQQrwoEiUsrWFKcomP58g"}",  # TODO if needed
+    }
+
+    body = {
+    "packageId": "UUS6153790882160798",
+    "labelType": 6,
+    "labelFormat": "pdf",
+    "type": "pdf"
+}
+
+    r = requests.get(label_api_url, headers=headers, stream=True,body= body)
+    r.raise_for_status()
+
+    # Stream response to client
+    return Response(
+        r.iter_content(chunk_size=8192),
+        mimetype="application/pdf",
+        headers={
+            "Content-Disposition": 'inline; filename="label.pdf"',
+            # If your UI is on another domain and you need CORS, handle it separately
+        },
+    )
 
 # ---------------- Agent APIs ----------------
 @app.post("/api/agents")

@@ -1,27 +1,36 @@
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse,StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
-import sqlite3
-from datetime import datetime
+from datetime import datetime, date
 import os
 import uuid
 import httpx
 import time
 import io
 
+import psycopg2
+from psycopg2.extras import RealDictCursor
+from dotenv import load_dotenv
 
 app = FastAPI(title="WillowCommerce API Example")
-DB_PATH = "example.db"
 
-BASE_URL = ("https://willowcommerce-api.onrender.com").rstrip("/")
-uniuni_url = "https://prm-api.qa.uniuni.com/orders/printlabel"
-token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vcHJtLWFwaS51bml1bmkuY29tL3N0b3JlYXV0aC9jdXN0b21lcnRva2VuIiwiaWF0IjoxNzY3OTY3NTAzLCJuYmYiOjE3Njc5Njc1MDMsImV4cCI6MTc2ODA1MzkwMywiY291bnRyeSI6IlVTIiwicGFydG5lcl9pZCI6Mzc5LCJuYW1lIjoiSGFydmljIGludGVybmF0aW9uYWwiLCJhcGlfdmVyc2lvbiI6IjIifQ.UgCM4-u-OQsuGTVkSWxY0YzYn0-yp8NCtNicXtGwGW0"
+# Load .env only locally (Render will use Dashboard env vars)
+if os.path.exists(".env"):
+    load_dotenv()
 
-headers = {
-    "Authorization": f"Bearer {token}",
-    "Content-Type": "application/pdf"
+# ---- ENV ----
+BASE_URL = os.environ["BASE_URL"].rstrip("/")
+UNIUNI_URL = os.environ["UNINUNIUNI_PRINTLABEL_URL"]
+TOKEN = os.environ["TOKEN"]
+DATABASE_URL = os.environ["INTERNAL_DATABASE_URL"]
+
+# For label API (you send JSON, not PDF)
+LABEL_API_HEADERS = {
+    "Authorization": f"Bearer {TOKEN}",
+    "Content-Type": "application/json"
 }
 
+# ---- OpenAPI 3.0 route ----
 @app.get("/openapi-3.0.json", include_in_schema=False)
 def openapi_30(request: Request):
     schema = app.openapi()
@@ -31,213 +40,279 @@ def openapi_30(request: Request):
     return JSONResponse(schema)
 
 
-#-----------Functions-------------------
-
+# ---------- DB helpers ----------
 def get_db_connection():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+    # RealDictCursor makes rows behave like dicts: row["status"]
+    return psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
 
-def days_since(date_str: str | None) -> int | None:
-    if not date_str:
+
+def days_since(val) -> int | None:
+    """
+    Works with Postgres date/datetime OR string.
+    """
+    if not val:
         return None
-    deliver_date = datetime.strptime(date_str, "%Y-%m-%d")
-    return (datetime.now() - deliver_date).days
 
+    if isinstance(val, datetime):
+        dt = val
+    elif isinstance(val, date):
+        dt = datetime.combine(val, datetime.min.time())
+    elif isinstance(val, str):
+        # try common formats
+        try:
+            dt = datetime.strptime(val, "%Y-%m-%d")
+        except ValueError:
+            # ISO fallback
+            dt = datetime.fromisoformat(val.replace("Z", "+00:00"))
+    else:
+        return None
+
+    return (datetime.now() - dt).days
+
+
+# ---------- Schemas ----------
 class RefundRequest(BaseModel):
     reason: str
-class ReplacementReuqest(BaseModel):
+
+
+class ReplacementRequest(BaseModel):
     reason: str
 
-#------------ label printing APIs ------------------
+
+# ------------ Label endpoints ------------
 @app.get("/labels/{label_id}/view")
 def view_label(label_id: str):
     conn = get_db_connection()
-    row = conn.execute("SELECT pdf FROM labels WHERE id = ?", (label_id,)).fetchone()
-    conn.close()
-    if not row:
-        raise HTTPException(status_code=404, detail="Label not found")
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT pdf FROM labels WHERE id = %s", (label_id,))
+            row = cur.fetchone()
 
-    return StreamingResponse(io.BytesIO(row["pdf"]), media_type="application/pdf")
+            if not row:
+                raise HTTPException(status_code=404, detail="Label not found")
+
+            return StreamingResponse(io.BytesIO(row["pdf"]), media_type="application/pdf")
+    finally:
+        conn.close()
+
 
 @app.get("/labels/{label_id}/download")
 def download_label(label_id: str):
     conn = get_db_connection()
-    row = conn.execute("SELECT pdf, order_id FROM labels WHERE id = ?", (label_id,)).fetchone()
-    conn.close()
-    if not row:
-        raise HTTPException(status_code=404, detail="Label not found")
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT pdf, order_id FROM labels WHERE id = %s", (label_id,))
+            row = cur.fetchone()
 
-    return StreamingResponse(
-        io.BytesIO(row["pdf"]),
-        media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="return_label_order_{row["order_id"]}.pdf"'}
-    )
+            if not row:
+                raise HTTPException(status_code=404, detail="Label not found")
+
+            return StreamingResponse(
+                io.BytesIO(row["pdf"]),
+                media_type="application/pdf",
+                headers={"Content-Disposition": f'attachment; filename="return_label_order_{row["order_id"]}.pdf"'}
+            )
+    finally:
+        conn.close()
 
 
-#------------- APIS -----------------
+# ------------- APIs -------------
 @app.get("/health")
 def health_check():
     return {"status": "healthy"}
 
-@app.get("/orders/{tenant_id}/{order_id}")
-def get_order(order_id: int,tenant_id:str):
-    conn = get_db_connection()
-    row = conn.execute("SELECT * FROM orders WHERE order_id = ? AND tenant_id = ?", (order_id,tenant_id)).fetchone()
-    conn.close()
-    if not row:
-        raise HTTPException(status_code=404, detail="Order not found")
 
-    data = dict(row)
-    data["days_since_ordered"] = days_since(data.get("order_date"))
-    return data
+@app.get("/orders/{tenant_id}/{order_id}")
+def get_order(tenant_id: str, order_id: int):
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT * FROM orders WHERE order_id = %s AND tenant_id = %s",
+                (order_id, tenant_id)
+            )
+            row = cur.fetchone()
+
+            if not row:
+                raise HTTPException(status_code=404, detail="Order not found")
+
+            row["days_since_ordered"] = days_since(row.get("order_date"))
+            return row
+    finally:
+        conn.close()
+
 
 @app.post("/orders/{tenant_id}/{order_id}/cancel")
-def initiate_cancellation(order_id: int,tenant_id:str):
+def initiate_cancellation(tenant_id: str, order_id: int):
     conn = get_db_connection()
-    row = conn.execute("SELECT * FROM orders WHERE order_id = ?", (order_id,tenant_id)).fetchone()
-    if not row:
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT * FROM orders WHERE order_id = %s AND tenant_id = %s",
+                (order_id, tenant_id)
+            )
+            row = cur.fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail="Order not found")
+
+            cur.execute(
+                "UPDATE orders SET status = %s WHERE order_id = %s AND tenant_id = %s",
+                ("CANCELLED", order_id, tenant_id)
+            )
+            conn.commit()
+
+            return {"ok": True, "order_id": order_id, "tenant_id": tenant_id, "new_status": "CANCELLED"}
+    finally:
         conn.close()
-        raise HTTPException(status_code=404, detail="Order not found")
-    conn.execute("UPDATE orders SET status = 'CANCELLED' WHERE order_id = ? AND tenant_id = ?", (order_id,tenant_id))
-    conn.commit()
-    conn.close()
-    return {"ok": True, "order_id": order_id, "user_id": tenant_id, "new_status": "CANCELLED"}
+
 
 @app.post("/orders/{tenant_id}/{order_id}/replacement")
-def replacementOrder(order_id: int,tenant_id:str,payload: ReplacementReuqest):
+def replacement_order(tenant_id: str, order_id: int, payload: ReplacementRequest):
     conn = get_db_connection()
-    row = conn.execute("SELECT * FROM orders WHERE order_id = ? AND tenant_id = ?", (order_id,tenant_id)).fetchone()
-    if not row:
-        conn.close()
-        raise HTTPException(status_code=404, detail="Order not found")
-    
-    package_id = "UUS6153790882160798"
-    if not package_id:
-        conn.close()
-        raise HTTPException(status_code=409, detail="Package ID missing; cannot generate label")
-
-    # ✅ Update order status
-    conn.execute(
-        "UPDATE orders SET status = 'REPLACEMENT INITIATED' WHERE order_id = ? AND tenant_id = ?",
-        (order_id, tenant_id)
-    )
-
-    # ✅ Call label printing API (returns PDF bytes)
     try:
-        with httpx.Client(timeout=30) as client:
-            r = client.post(
-                uniuni_url,headers=headers,
-                json={
-                    "packageId": package_id,
-                    "labelType": 6,
-                    "labelFormat": "pdf",
-                    "type": "pdf"
-                }
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT * FROM orders WHERE order_id = %s AND tenant_id = %s",
+                (order_id, tenant_id)
             )
-        if r.status_code != 200 or not r.content:
-            conn.rollback()
-            conn.close()
-            raise HTTPException(status_code=502, detail="Label service failed")
-        pdf_bytes = r.content
-    except httpx.HTTPError:
-        conn.rollback()
+            row = cur.fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail="Order not found")
+
+            package_id = "UUS6153790882160798"
+            if not package_id:
+                raise HTTPException(status_code=409, detail="Package ID missing; cannot generate label")
+
+            # Update status
+            cur.execute(
+                "UPDATE orders SET status = %s WHERE order_id = %s AND tenant_id = %s",
+                ("REPLACEMENT_INITIATED", order_id, tenant_id)
+            )
+
+            # Call label API
+            try:
+                with httpx.Client(timeout=30) as client:
+                    r = client.post(
+                        UNIUNI_URL,
+                        headers=LABEL_API_HEADERS,
+                        json={
+                            "packageId": package_id,
+                            "labelType": 6,
+                            "labelFormat": "pdf",
+                            "type": "pdf"
+                        }
+                    )
+                if r.status_code != 200 or not r.content:
+                    conn.rollback()
+                    raise HTTPException(status_code=502, detail="Label service failed")
+                pdf_bytes = r.content
+            except httpx.HTTPError:
+                conn.rollback()
+                raise HTTPException(status_code=502, detail="Label service unreachable")
+
+            # Save label
+            label_id = str(uuid.uuid4())
+            cur.execute(
+                """
+                INSERT INTO labels (id, tenant_id, order_id, kind, created_at, pdf)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                """,
+                (label_id, tenant_id, order_id, "replacement", int(time.time()), psycopg2.Binary(pdf_bytes))
+            )
+
+            conn.commit()
+
+            return {
+                "ok": True,
+                "order_id": order_id,
+                "tenant_id": tenant_id,
+                "new_status": "REPLACEMENT_INITIATED",
+                "reason": payload.reason,
+                "label": {
+                    "label_id": label_id,
+                    "view_url": f"{BASE_URL}/labels/{label_id}/view",
+                    "download_url": f"{BASE_URL}/labels/{label_id}/download"
+                }
+            }
+    finally:
         conn.close()
-        raise HTTPException(status_code=502, detail="Label service unreachable")
 
-    # ✅ Save label PDF in DB
-    label_id = str(uuid.uuid4())
-    conn.execute(
-        "INSERT INTO labels (id, tenant_id, order_id, kind, created_at, pdf) VALUES (?, ?, ?, ?, ?, ?)",
-        (label_id, tenant_id, order_id, "replacement", int(time.time()), pdf_bytes)
-    )
-
-    conn.commit()
-    conn.close()
-
-    # ✅ Return JSON so Foundry tool can pass it back to agent/UI
-    return {
-        "ok": True,
-        "order_id": order_id,
-        "tenant_id": tenant_id,
-        "new_status": "REPLACEMENT INITIATED",
-        "reason": payload.reason,
-        "label": {
-            "label_id": label_id,
-            "view_url": f"{BASE_URL}/labels/{label_id}/view",
-            "download_url": f"{BASE_URL}/labels/{label_id}/download"
-        }
-    }
 
 @app.post("/orders/{tenant_id}/{order_id}/return")
-def initiate_refund(order_id: int,tenant_id:str, payload: RefundRequest):
+def initiate_refund(tenant_id: str, order_id: int, payload: RefundRequest):
     conn = get_db_connection()
-    row = conn.execute("SELECT status, delivers_at FROM orders WHERE order_id = ? AND tenant_id = ?", (order_id,tenant_id)).fetchone()
-    if not row:
-        conn.close()
-        raise HTTPException(status_code=404, detail="Order not found")
-    
-    status = row["status"]
-    delivers_at = row["delivers_at"]
-    days_passed = days_since(delivers_at)
-    
-    package_id = "UUS6153790882160798"
-    if not package_id:
-        conn.close()
-        raise HTTPException(status_code=409, detail="Package ID missing; cannot generate label")
-
-    # ✅ Update order status
-    conn.execute(
-        "UPDATE orders SET status = 'REFUND_INITIATED' WHERE order_id = ? AND tenant_id = ?",
-        (order_id, tenant_id)
-    )
-
-    # ✅ Call label printing API (returns PDF bytes)
     try:
-        with httpx.Client(timeout=30) as client:
-            r = client.post(
-            uniuni_url,headers=headers,
-                json={
-                    "packageId": package_id,
-                    "labelType": 6,
-                    "labelFormat": "pdf",
-                    "type": "pdf"
-                }
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT status, delivered_at FROM orders WHERE order_id = %s AND tenant_id = %s",
+                (order_id, tenant_id)
             )
-        if r.status_code != 200 or not r.content:
-            conn.rollback()
-            conn.close()
-            raise HTTPException(status_code=502, detail="Label service failed")
-        pdf_bytes = r.content
-    except httpx.HTTPError:
-        conn.rollback()
+            row = cur.fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail="Order not found")
+
+            # Optional: compute days passed
+            days_passed = days_since(row.get("delivered_at"))
+
+            package_id = "UUS6153790882160798"
+            if not package_id:
+                raise HTTPException(status_code=409, detail="Package ID missing; cannot generate label")
+
+            # Update status
+            cur.execute(
+                "UPDATE orders SET status = %s WHERE order_id = %s AND tenant_id = %s",
+                ("REFUND_INITIATED", order_id, tenant_id)
+            )
+
+            # Call label API
+            try:
+                with httpx.Client(timeout=30) as client:
+                    r = client.post(
+                        UNIUNI_URL,
+                        headers=LABEL_API_HEADERS,
+                        json={
+                            "packageId": package_id,
+                            "labelType": 6,
+                            "labelFormat": "pdf",
+                            "type": "pdf"
+                        }
+                    )
+                if r.status_code != 200 or not r.content:
+                    conn.rollback()
+                    raise HTTPException(status_code=502, detail="Label service failed")
+                pdf_bytes = r.content
+            except httpx.HTTPError:
+                conn.rollback()
+                raise HTTPException(status_code=502, detail="Label service unreachable")
+
+            # Save label
+            label_id = str(uuid.uuid4())
+            cur.execute(
+                """
+                INSERT INTO labels (id, tenant_id, order_id, kind, created_at, pdf)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                """,
+                (label_id, tenant_id, order_id, "return", int(time.time()), psycopg2.Binary(pdf_bytes))
+            )
+
+            conn.commit()
+
+            return {
+                "ok": True,
+                "order_id": order_id,
+                "tenant_id": tenant_id,
+                "new_status": "REFUND_INITIATED",
+                "reason": payload.reason,
+                "label": {
+                    "label_id": label_id,
+                    "view_url": f"{BASE_URL}/labels/{label_id}/view",
+                    "download_url": f"{BASE_URL}/labels/{label_id}/download"
+                }
+            }
+    finally:
         conn.close()
-        raise HTTPException(status_code=502, detail="Label service unreachable")
 
-    # ✅ Save label PDF in DB
-    label_id = str(uuid.uuid4())
-    conn.execute(
-        "INSERT INTO labels (id, tenant_id, order_id, kind, created_at, pdf) VALUES (?, ?, ?, ?, ?, ?)",
-        (label_id, tenant_id, order_id, "return", int(time.time()), pdf_bytes)
-    )
-
-    conn.commit()
-    conn.close()
-
-    # ✅ Return JSON so Foundry tool can pass it back to agent/UI
-    return {
-        "ok": True,
-        "order_id": order_id,
-        "tenant_id": tenant_id,
-        "new_status": "REFUND_INITIATED",
-        "reason": payload.reason,
-        "label": {
-            "label_id": label_id,
-            "view_url": f"{BASE_URL}/labels/{label_id}/view",
-            "download_url": f"{BASE_URL}/labels/{label_id}/download"
-        }
-    }
 
 @app.post("/orders/{tenant_id}/{order_id}/humancontact")
-def human_contact(order_id:int,tenant_id:str):
-    return{"print":f"""Human contact achived in {tenant_id}"""}
+def human_contact(tenant_id: str, order_id: int):
+    return {"ok": True, "message": f"Human contact achieved for tenant {tenant_id}", "order_id": order_id}

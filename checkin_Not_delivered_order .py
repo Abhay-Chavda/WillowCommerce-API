@@ -6,24 +6,14 @@ conn = sqlite3.connect(DB_PATH)
 cursor = conn.cursor()
 
 # Update records
-cursor.execute("""
-    UPDATE orders
-    SET status = 'DELIVERED'
-    WHERE status = 'REPLACEMENT INITIATED'
-""")
-
-# Commit changes
-conn.commit()
-
-# Fetch updated records
-cursor.execute("""
-    SELECT * FROM orders
-    WHERE tenant_id = "u1" AND status = 'DELIVERED'
-""")
+cursor.execute("SELECT * FROM labels")
 
 rows = cursor.fetchall()
 
 print("Code is working")
+if not rows:
+    print("No records found")
+
 for row in rows:
     print(row)
 
