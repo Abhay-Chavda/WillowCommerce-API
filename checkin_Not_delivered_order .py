@@ -1,16 +1,26 @@
-import sqlite3
+import psycopg2
+import os
+from dotenv import load_dotenv
+from psycopg2.extras import RealDictCursor
 
-DB_PATH = 'example.db'
+if os.path.exists(".env"):
+    load_dotenv()
 
-conn = sqlite3.connect(DB_PATH)
+DATABASE_URL = os.environ["EXTERNAL_DATABASE_URL"]
+
+conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
 cursor = conn.cursor()
 
-# Update records
-cursor.execute("SELECT * FROM labels")
+cursor.execute("""
+    SELECT * 
+    FROM orders 
+    WHERE tenant_id = %s AND status = %s
+""", ("u1", "DELIVERED"))
 
 rows = cursor.fetchall()
 
-print("Code is working")
+print("Query executed successfully")
+
 if not rows:
     print("No records found")
 

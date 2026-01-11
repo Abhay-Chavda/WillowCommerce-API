@@ -244,7 +244,7 @@ def initiate_refund(tenant_id: str, order_id: int, payload: RefundRequest):
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT status, delivered_at FROM orders WHERE order_id = %s AND tenant_id = %s",
+                "SELECT status, delivers_at FROM orders WHERE order_id = %s AND tenant_id = %s",
                 (order_id, tenant_id)
             )
             row = cur.fetchone()
@@ -252,7 +252,7 @@ def initiate_refund(tenant_id: str, order_id: int, payload: RefundRequest):
                 raise HTTPException(status_code=404, detail="Order not found")
 
             # Optional: compute days passed
-            days_passed = days_since(row.get("delivered_at"))
+            days_passed = days_since(row.get("delivers_at"))
 
             package_id = "UUS6153790882160798"
             if not package_id:
