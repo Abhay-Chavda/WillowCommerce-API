@@ -18,16 +18,15 @@
     "/health": {
       "get": {
         "summary": "Health Check",
-        "operationId": "getHealth",
+        "operationId": "HealthCheck",
         "security": [],
         "responses": {
           "200": {
-            "description": "Successful Response",
+            "description": "Service is healthy",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": true
+                  "type": "object"
                 }
               }
             }
@@ -35,31 +34,94 @@
         }
       }
     },
-    "/orders/{order_id}": {
+    "/labels/{label_id}/view": {
+      "get": {
+        "summary": "View Label",
+        "operationId": "ViewLabel",
+        "parameters": [
+          {
+            "name": "label_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/labels/{label_id}/download": {
+      "get": {
+        "summary": "Download Label",
+        "operationId": "DownloadLabel",
+        "parameters": [
+          {
+            "name": "label_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/orders/{tenant_id}/{order_id}": {
       "get": {
         "summary": "Get Order",
-        "operationId": "getOrder",
+        "operationId": "GetOrder",
         "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "order_id",
             "in": "path",
             "required": true,
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "format": "int64"
             }
           }
         ],
         "responses": {
           "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true
-                }
-              }
-            }
+            "description": "Successful Response"
           },
           "422": {
             "description": "Validation Error",
@@ -74,56 +136,96 @@
         }
       }
     },
-    "/orders/{order_id}/cancel": {
+    "/orders/{tenant_id}/{order_id}/cancel": {
       "post": {
         "summary": "Initiate Cancellation",
-        "operationId": "orderCancel",
+        "operationId": "CancelOrder",
         "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "order_id",
             "in": "path",
             "required": true,
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "format": "int64"
             }
           }
         ],
         "responses": {
           "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
+            "description": "Successful Response"
           }
         }
       }
     },
-    "/orders/{order_id}/refund": {
+    "/orders/{tenant_id}/{order_id}/replacement": {
       "post": {
-        "summary": "Initiate Refund",
-        "operationId": "refundOrder",
+        "summary": "Replacement Order",
+        "operationId": "RepalcementOrder",
         "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "order_id",
             "in": "path",
             "required": true,
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplacementReuqest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          }
+        }
+      }
+    },
+    "/orders/{tenant_id}/{order_id}/return": {
+      "post": {
+        "summary": "Initiate Refund",
+        "operationId": "RefundOrder",
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
             }
           }
         ],
@@ -139,25 +241,37 @@
         },
         "responses": {
           "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true
-                }
-              }
+            "description": "Successful Response"
+          }
+        }
+      }
+    },
+    "/orders/{tenant_id}/{order_id}/humancontact": {
+      "post": {
+        "summary": "Human Contact",
+        "operationId": "HumanContact",
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
             }
           },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
             }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
           }
         }
       }
@@ -168,8 +282,7 @@
       "bearerAuth": {
         "type": "http",
         "scheme": "bearer",
-        "bearerFormat": "JWT",
-        "description": "Send your access token as: Authorization: Bearer <token>"
+        "bearerFormat": "JWT"
       }
     },
     "schemas": {
@@ -182,8 +295,18 @@
           "reason": {
             "type": "string"
           }
-        },
-        "additionalProperties": false
+        }
+      },
+      "ReplacementReuqest": {
+        "type": "object",
+        "required": [
+          "reason"
+        ],
+        "properties": {
+          "reason": {
+            "type": "string"
+          }
+        }
       },
       "HTTPValidationError": {
         "type": "object",
@@ -194,8 +317,7 @@
               "$ref": "#/components/schemas/ValidationError"
             }
           }
-        },
-        "additionalProperties": false
+        }
       },
       "ValidationError": {
         "type": "object",
@@ -224,8 +346,7 @@
           "type": {
             "type": "string"
           }
-        },
-        "additionalProperties": false
+        }
       }
     }
   }

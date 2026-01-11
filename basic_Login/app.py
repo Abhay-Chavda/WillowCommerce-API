@@ -9,11 +9,9 @@ from azure.ai.projects import AIProjectClient
 from azure.ai.projects.models import PromptAgentDefinition
 import re
 import jsonref
-import io
-import sqlite3
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse
-import json
+
 
 #calling json file and tools
 OPENAPI_SPEC_PATH = os.path.join(os.path.dirname(__file__), "willow_openapi.json")
@@ -31,22 +29,36 @@ openapi_tool = {
 }
 
 #-------------- Functions ------------------
+def _as_dict(x):
+    # Pydantic v2 models have model_dump()
+    if hasattr(x, "model_dump"):
+        return x.model_dump()
+    # Pydantic v1 models have dict()
+    if hasattr(x, "dict"):
+        return x.dict()
+    # already dict-like
+    if isinstance(x, dict):
+        return x
+    return {}
+
 def extract_label_links_from_foundry_response(resp):
-    """
-    Looks through resp.output for tool_result items and extracts label URLs if present.
-    Returns (view_url, download_url) or (None, None).
-    """
     view_url = None
     download_url = None
 
     output = getattr(resp, "output", None) or []
     for item in output:
-        if item.get("type") != "tool_result":
+        d = _as_dict(item)
+
+        if d.get("type") != "tool_result":
             continue
 
-        content = item.get("content") or {}
-        label = content.get("label") or {}
+        content = d.get("content") or {}
 
+        # content may itself be a list/obj depending on SDK; normalize
+        if hasattr(content, "model_dump") or hasattr(content, "dict"):
+            content = _as_dict(content)
+
+        label = (content.get("label") or {})
         view_url = label.get("view_url")
         download_url = label.get("download_url")
 
@@ -54,6 +66,7 @@ def extract_label_links_from_foundry_response(resp):
             break
 
     return view_url, download_url
+
 
 def extract_label_links(response):
     view_url = None
@@ -111,7 +124,12 @@ Tool Error Handling:
   - Continue the conversation.
   - Convert the error into a user-friendly message.
   - Never expose HTTP codes, tool IDs, or internal errors.
-  - if error comes contact admin too."""
+  - if error comes contact admin too..
+When a shipping label is generated, do NOT include any link, URL, or markdown in the chat response.
+Do NOT write “View Label” or “Download Label” links.
+Only confirm the action (e.g., “Return initiated” / “Replacement initiated”).
+The application UI will render label buttons using tool outputs.
+ """
 project_client = AIProjectClient(
     endpoint=os.environ["PROJECT_ENDPOINT"],
     credential=DefaultAzureCredential(),
@@ -119,10 +137,10 @@ project_client = AIProjectClient(
 
 # --- Demo users ---
 USERS = {
-    "abhay": {"password": "1234", "role": "admin"},
-    "user1": {"password": "1111", "role": "user"},
-    "user2": {"password": "2222", "role": "user"},
-    "user3": {"password": "3333", "role": "user"},
+    "abhay": {"id" : "a1", "password": "1234", "role": "admin"},
+    "user1": {"id": "u1", "password": "1111", "role": "user"},
+    "user2": {"id": "u2", "password": "2222", "role": "user"},
+    "user3": {"id": "u3", "password": "3333", "role": "user"},
 }
 
 
@@ -189,7 +207,7 @@ def api_login():
     if not user or user["password"] != password:
         return jsonify({"ok": False, "message": "Invalid login"}), 401
 
-    session["user"] = {"username": username, "role": user["role"]}
+    session["user"] = {"username": username, "role": user["role"] , "id": user["id"]}
     return jsonify({"ok": True, "user": session["user"]})
 
 
@@ -230,7 +248,7 @@ def create_agent():
         }), 409
 
     raw_name = (data.get("name") or "").strip()
-    instructions = f"""You work for user with user_id {username}.(data.get("instructions") or "").strip()"""
+    instructions = f"""You work for user with tenant_id {session['user']['id']}.(data.get("instructions") or "").strip()"""
     
     if not raw_name:
         return jsonify({"ok": False, "message": "Agent name required"}), 400
@@ -303,7 +321,7 @@ def test_agent(agent_id):
     myAgent = agent["name"]
 
     agent_obj = project_client.agents.get(agent_name=myAgent)
-    print(f"Retrieved agent: {agent.name}")
+    print(f"Retrieved agent: {agent_obj.name}")
 
     openai_client = project_client.get_openai_client()
 
@@ -313,6 +331,7 @@ def test_agent(agent_id):
         extra_body={"agent": {"name": agent_obj.name, "type": "agent_reference"}},
     )
 
+    print(type(response.output[0]), response.output[0])
     reply = response.output_text or ""
     AGENT_MESSAGES[agent_id].append({"role": "assistant", "content": reply})
 
