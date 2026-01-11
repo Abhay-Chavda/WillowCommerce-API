@@ -4,3 +4,4 @@ pydantic==1.10.13
 gunicorn==21.2.0
 httpx==0.26.0
 psycopg2-binary==2.9.11
+python-dotenv==1.0.1
