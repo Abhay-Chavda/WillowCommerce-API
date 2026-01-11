@@ -228,11 +228,7 @@ def replacement_order(tenant_id: str, order_id: int, payload: ReplacementRequest
                 "tenant_id": tenant_id,
                 "new_status": "REPLACEMENT_INITIATED",
                 "reason": payload.reason,
-                "label": {
-                    "label_id": label_id,
-                    "view_url": f"{BASE_URL}/labels/{label_id}/view",
-                    "download_url": f"{BASE_URL}/labels/{label_id}/download"
-                }
+                "label_id": label_id
             }
     finally:
         conn.close()
@@ -303,11 +299,7 @@ def initiate_refund(tenant_id: str, order_id: int, payload: RefundRequest):
                 "tenant_id": tenant_id,
                 "new_status": "REFUND_INITIATED",
                 "reason": payload.reason,
-                "label": {
-                    "label_id": label_id,
-                    "view_url": f"{BASE_URL}/labels/{label_id}/view",
-                    "download_url": f"{BASE_URL}/labels/{label_id}/download"
-                }
+                "label_id": label_id
             }
     finally:
         conn.close()

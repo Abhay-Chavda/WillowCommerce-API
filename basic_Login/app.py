@@ -30,58 +30,20 @@ openapi_tool = {
 }
 
 #-------------- Functions ------------------
-def _as_dict(x):
-    # Pydantic v2 models have model_dump()
-    if hasattr(x, "model_dump"):
-        return x.model_dump()
-    # Pydantic v1 models have dict()
-    if hasattr(x, "dict"):
-        return x.dict()
-    # already dict-like
-    if isinstance(x, dict):
-        return x
-    return {}
-
-def extract_label_links_from_foundry_response(resp):
+def extract_label_links(resp):
     view_url = None
     download_url = None
 
-    output = getattr(resp, "output", None) or []
-    for item in output:
-        d = _as_dict(item)
+    order_id = resp.get("order_id")
+    tenant_id = resp.get("tenant_id")
+    url = f"https://willowcommerce-api.onrender.com/labels/{order_id}/{tenant_id}/get_label"
 
-        if d.get("type") != "tool_result":
-            continue
-
-        content = d.get("content") or {}
-
-        # content may itself be a list/obj depending on SDK; normalize
-        if hasattr(content, "model_dump") or hasattr(content, "dict"):
-            content = _as_dict(content)
-
-        label = (content.get("label") or {})
-        view_url = label.get("view_url")
-        download_url = label.get("download_url")
-
-        if view_url or download_url:
-            break
-
-    return view_url, download_url
-
-
-def extract_label_links(response):
-    view_url = None
-    download_url = None
-
-    for item in getattr(response, "output", []) or []:
-        if item.get("type") == "tool_result":
-            content = item.get("content") or {}
-            label = content.get("label") or {}
-            view_url = label.get("view_url")
-            download_url = label.get("download_url")
-            if view_url or download_url:
-                break
-
+    response = request.get(url)
+    if response.status_code == 200:
+        data = response.json()
+        label_id = data['label_id']['id']
+        view_url = f"https://willowcommerce-api.onrender.com/labels/{label_id}/view"
+        download_url = f"https://willowcommerce-api.onrender.com/labels/{label_id}/download"
     return view_url, download_url
 
 
@@ -367,7 +329,7 @@ def test_agent(agent_id):
     AGENT_MESSAGES[agent_id].append({"role": "assistant", "content": reply})
 
     # ✅ Extract label URLs from tool_result (not from reply text)
-    view_url, download_url = extract_label_links_from_foundry_response(response)
+    view_url, download_url = extract_label_links(response)
     import json
     print(json.dumps(response.output, indent=2))
 
