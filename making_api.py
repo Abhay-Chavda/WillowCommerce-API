@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse,Response
 from pydantic import BaseModel
 from datetime import datetime, date
 import os
@@ -7,7 +7,7 @@ import uuid
 import httpx
 import time
 import io
-
+import base64
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from dotenv import load_dotenv
@@ -88,10 +88,31 @@ def view_label(label_id: str):
             cur.execute("SELECT pdf FROM labels WHERE id = %s", (label_id,))
             row = cur.fetchone()
 
-            if not row:
-                raise HTTPException(status_code=404, detail="Label not found")
+        if not row or not row.get("pdf"):
+            raise HTTPException(status_code=404, detail="Label not found")
 
-            return StreamingResponse(io.BytesIO(row["pdf"]), media_type="application/pdf")
+        pdf_data = row["pdf"]
+
+        # ✅ Postgres bytea often comes back as memoryview
+        if isinstance(pdf_data, memoryview):
+            pdf_bytes = pdf_data.tobytes()
+        else:
+            pdf_bytes = pdf_data
+
+        # ✅ If you accidentally stored base64 string
+        if isinstance(pdf_bytes, str):
+            pdf_bytes = base64.b64decode(pdf_bytes)
+
+        # ✅ sanity check (optional but recommended)
+        if not pdf_bytes.startswith(b"%PDF-"):
+            raise HTTPException(status_code=500, detail="Stored data is not a valid PDF")
+
+        # Best for PDFs: return raw bytes response (more reliable than streaming for small files)
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": 'inline; filename="label.pdf"'},
+        )
     finally:
         conn.close()
 
@@ -104,17 +125,30 @@ def download_label(label_id: str):
             cur.execute("SELECT pdf, order_id FROM labels WHERE id = %s", (label_id,))
             row = cur.fetchone()
 
-            if not row:
-                raise HTTPException(status_code=404, detail="Label not found")
+        if not row or not row.get("pdf"):
+            raise HTTPException(status_code=404, detail="Label not found")
 
-            return StreamingResponse(
-                io.BytesIO(row["pdf"]),
-                media_type="application/pdf",
-                headers={"Content-Disposition": f'attachment; filename="return_label_order_{row["order_id"]}.pdf"'}
-            )
+        pdf_data = row["pdf"]
+        if isinstance(pdf_data, memoryview):
+            pdf_bytes = pdf_data.tobytes()
+        else:
+            pdf_bytes = pdf_data
+
+        if isinstance(pdf_bytes, str):
+            pdf_bytes = base64.b64decode(pdf_bytes)
+
+        if not pdf_bytes.startswith(b"%PDF-"):
+            raise HTTPException(status_code=500, detail="Stored data is not a valid PDF")
+
+        filename = f'return_label_order_{row.get("order_id", "unknown")}.pdf'
+
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
     finally:
         conn.close()
-
 
 # ------------- APIs -------------
 @app.get("/health")
@@ -288,7 +322,7 @@ def initiate_refund(tenant_id: str, order_id: int, payload: RefundRequest):
                 INSERT INTO labels (id, tenant_id, order_id, kind, created_at, pdf)
                 VALUES (%s, %s, %s, %s, %s, %s)
                 """,
-                (label_id, tenant_id, order_id, "return", int(time.time()), psycopg2.Binary(pdf_bytes))#path
+                (label_id, tenant_id, order_id, "return", int(time.time()), psycopg2.Binary(pdf_bytes))
             )
 
             conn.commit()
@@ -317,4 +351,4 @@ def get_label_id(order_id: int, tenant_id: str):
     cur = conn.cursor()
     cur.execute("SELECT id FROM labels WHERE order_id = %s AND tenant_id = %s", (order_id, tenant_id))
     label_id = cur.fetchone()
-    return {"ok":True, "label_id":label_id , "view_url":f"https://willowcommerce-api.onrender.com/labels/{label_id}/view", "download_url":f"https://willowcommerce-api.onrender.com/labels/{label_id}/download"}
+    return {"ok":True, "label_id":label_id}
