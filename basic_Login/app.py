@@ -333,14 +333,13 @@ def test_agent(agent_id):
     myAgent = agent["name"]
 
     agent_obj = project_client.agents.get(agent_name=myAgent)
-    agent_id = agent_obj.id
     print(f"Retrieved agent: {agent_obj.name}")
 
     openai_client = project_client.get_openai_client()
 
     # Reference the agent to get a response
     response = openai_client.responses.create(
-        input=[{"role": "user", "content": AGENT_MESSAGES[agent_id]}],
+        input= AGENT_MESSAGES[agent_id],
         extra_body={"agent": {"name": agent_obj.name, "type": "agent_reference"}},
     )
 

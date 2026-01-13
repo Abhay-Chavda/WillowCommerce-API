@@ -9,14 +9,20 @@
       "url": "https://willowcommerce-api.onrender.com"
     }
   ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
   "paths": {
     "/health": {
       "get": {
         "summary": "Health Check",
-        "operationId": "HealthCheck",
+        "operationId": "healthCheck",
+        "security": [],
         "responses": {
           "200": {
-            "description": "Service is healthy",
+            "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -29,11 +35,10 @@
         }
       }
     },
-
     "/orders/{tenant_id}/{order_id}": {
       "get": {
         "summary": "Get Order",
-        "operationId": "GetOrder",
+        "operationId": "getOrder",
         "parameters": [
           {
             "name": "tenant_id",
@@ -45,34 +50,33 @@
             "name": "order_id",
             "in": "path",
             "required": true,
-            "schema": { "type": "integer", "format": "int64" }
+            "schema": { "type": "integer" }
           }
         ],
         "responses": {
           "200": {
-            "description": "Order details",
+            "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": { "type": "object", "additionalProperties": true }
               }
             }
           },
-          "404": {
-            "description": "Order not found",
+          "422": {
+            "description": "Validation Error",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ApiError" }
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
               }
             }
           }
         }
       }
     },
-
     "/orders/{tenant_id}/{order_id}/cancel": {
       "post": {
         "summary": "Initiate Cancellation",
-        "operationId": "CancelOrder",
+        "operationId": "cancelOrder",
         "parameters": [
           {
             "name": "tenant_id",
@@ -84,34 +88,33 @@
             "name": "order_id",
             "in": "path",
             "required": true,
-            "schema": { "type": "integer", "format": "int64" }
+            "schema": { "type": "integer" }
           }
         ],
         "responses": {
           "200": {
-            "description": "Cancellation initiated",
+            "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": { "type": "object", "additionalProperties": true }
               }
             }
           },
-          "404": {
-            "description": "Order not found",
+          "422": {
+            "description": "Validation Error",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ApiError" }
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
               }
             }
           }
         }
       }
     },
-
     "/orders/{tenant_id}/{order_id}/replacement": {
       "post": {
         "summary": "Replacement Order",
-        "operationId": "ReplacementOrder",
+        "operationId": "replaceOrder",
         "parameters": [
           {
             "name": "tenant_id",
@@ -123,7 +126,7 @@
             "name": "order_id",
             "in": "path",
             "required": true,
-            "schema": { "type": "integer", "format": "int64" }
+            "schema": { "type": "integer" }
           }
         ],
         "requestBody": {
@@ -136,37 +139,28 @@
         },
         "responses": {
           "200": {
-            "description": "Replacement initiated + label generated",
+            "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": { "type": "object", "additionalProperties": true }
               }
             }
           },
-          "404": {
-            "description": "Order not found",
+          "422": {
+            "description": "Validation Error",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ApiError" }
-              }
-            }
-          },
-          "502": {
-            "description": "Label service failed",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ApiError" }
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
               }
             }
           }
         }
       }
     },
-
     "/orders/{tenant_id}/{order_id}/return": {
       "post": {
         "summary": "Initiate Refund",
-        "operationId": "RefundOrder",
+        "operationId": "refundOrder",
         "parameters": [
           {
             "name": "tenant_id",
@@ -178,7 +172,7 @@
             "name": "order_id",
             "in": "path",
             "required": true,
-            "schema": { "type": "integer", "format": "int64" }
+            "schema": { "type": "integer" }
           }
         ],
         "requestBody": {
@@ -191,37 +185,28 @@
         },
         "responses": {
           "200": {
-            "description": "Refund initiated + label generated",
+            "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": { "type": "object", "additionalProperties": true }
               }
             }
           },
-          "404": {
-            "description": "Order not found",
+          "422": {
+            "description": "Validation Error",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ApiError" }
-              }
-            }
-          },
-          "502": {
-            "description": "Label service failed",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ApiError" }
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
               }
             }
           }
         }
       }
     },
-
     "/orders/{tenant_id}/{order_id}/humancontact": {
       "post": {
         "summary": "Human Contact",
-        "operationId": "HumanContact",
+        "operationId": "requestHumanContact",
         "parameters": [
           {
             "name": "tenant_id",
@@ -233,94 +218,39 @@
             "name": "order_id",
             "in": "path",
             "required": true,
-            "schema": { "type": "integer", "format": "int64" }
+            "schema": { "type": "integer" }
           }
         ],
         "responses": {
           "200": {
-            "description": "Human contact initiated",
+            "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": { "type": "object", "additionalProperties": true }
               }
             }
-          }
-        }
-      }
-    },
-
-    "/labels/{label_id}/view": {
-      "get": {
-        "summary": "View Label",
-        "operationId": "ViewLabel",
-        "parameters": [
-          {
-            "name": "label_id",
-            "in": "path",
-            "required": true,
-            "schema": { "type": "string" }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "PDF stream",
+          },
+          "422": {
+            "description": "Validation Error",
             "content": {
-              "application/pdf": {
-                "schema": { "type": "string", "format": "binary" }
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
               }
             }
-          },
-          "404": {
-            "description": "Label not found",
-            "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
-            }
           }
         }
       }
     },
-
-    "/labels/{label_id}/download": {
-      "get": {
-        "summary": "Download Label",
-        "operationId": "DownloadLabel",
-        "parameters": [
-          {
-            "name": "label_id",
-            "in": "path",
-            "required": true,
-            "schema": { "type": "string" }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "PDF download",
-            "content": {
-              "application/pdf": {
-                "schema": { "type": "string", "format": "binary" }
-              }
-            }
-          },
-          "404": {
-            "description": "Label not found",
-            "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
-            }
-          }
-        }
-      }
-    },
-
     "/labels/{order_id}/{tenant_id}/get_label": {
       "get": {
         "summary": "Get Label Id",
-        "operationId": "GetLabelId",
+        "operationId": "getLabelId",
         "parameters": [
           {
             "name": "order_id",
             "in": "path",
             "required": true,
-            "schema": { "type": "integer", "format": "int64" }
+            "schema": { "type": "integer" }
           },
           {
             "name": "tenant_id",
@@ -331,47 +261,139 @@
         ],
         "responses": {
           "200": {
-            "description": "Label lookup result",
+            "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": { "type": "object", "additionalProperties": true }
               }
             }
           },
-          "404": {
-            "description": "Label not found",
+          "422": {
+            "description": "Validation Error",
             "content": {
-              "application/json": { "schema": { "$ref": "#/components/schemas/ApiError" } }
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/labels/{label_id}/view": {
+      "get": {
+        "summary": "View Label",
+        "operationId": "viewLabel",
+        "parameters": [
+          {
+            "name": "label_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object", "additionalProperties": true }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/labels/{label_id}/download": {
+      "get": {
+        "summary": "Download Label",
+        "operationId": "downloadLabel",
+        "parameters": [
+          {
+            "name": "label_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object", "additionalProperties": true }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
             }
           }
         }
       }
     }
   },
-
   "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Use: Authorization: Bearer <token>"
+      }
+    },
     "schemas": {
       "RefundRequest": {
         "type": "object",
         "required": ["reason"],
         "properties": {
           "reason": { "type": "string" }
-        }
+        },
+        "additionalProperties": false
       },
       "ReplacementRequest": {
         "type": "object",
         "required": ["reason"],
         "properties": {
           "reason": { "type": "string" }
-        }
+        },
+        "additionalProperties": false
       },
-      "ApiError": {
+      "HTTPValidationError": {
         "type": "object",
         "properties": {
-          "message": { "type": "string" },
-          "detail": { "type": "string" }
+          "detail": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ValidationError" }
+          }
         },
-        "required": ["message"]
+        "additionalProperties": false
+      },
+      "ValidationError": {
+        "type": "object",
+        "required": ["loc", "msg", "type"],
+        "properties": {
+          "loc": {
+            "type": "array",
+            "items": {
+              "oneOf": [{ "type": "string" }, { "type": "integer" }]
+            }
+          },
+          "msg": { "type": "string" },
+          "type": { "type": "string" }
+        },
+        "additionalProperties": false
       }
     }
   }
