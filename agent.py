@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 from azure.identity import DefaultAzureCredential
 from azure.ai.projects import AIProjectClient
+import json
 
 load_dotenv()
 
@@ -13,7 +14,7 @@ project_client = AIProjectClient(
     credential=DefaultAzureCredential(),
 )
 
-myAgent = "willowcommerce-user2"
+myAgent = "willowcommerce-1"
 agent = project_client.agents.get(agent_name=myAgent)
 print(f"Retrieved agent: {agent.name}")
 agent_id = agent.id
@@ -38,14 +39,32 @@ while True:
     )
 
     reply = response.output_text or ""
-    print("\nResponse output:", reply)
+    print(reply)
+
+    data_json = response.model_dump()  # response is ONE Response object (dict after dump)
+
+    try:
+        # collect all openapi_call arguments as dicts
+        all_args = [
+            json.loads(item["arguments"])  # arguments is a JSON string -> dict
+            for item in data_json.get("output", [])
+            if item.get("type") == "openapi_call" and item.get("arguments")
+        ]
+
+        order_id = all_args[0].get("order_id") if all_args else None
+        print(order_id)
+
+    except Exception as e:
+        all_args = None
+        print("Error:", e)  
 
     AGENT_MESSAGES[agent_id].append({
         "role": "assistant",
         "content": reply,
     })
-    response_output.append(response.output)
+    response_output.append(response_output)
+
 
 
 print("\nChat ended.")
-print("Response Outputs :  /n" , response_output)
+print("Response Outputs :  \n" , response_output)

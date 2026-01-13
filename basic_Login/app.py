@@ -29,26 +29,6 @@ openapi_tool = {
     }
 }
 
-#-------------- Functions ------------------
-def extract_label_links(resp):
-    view_url = None
-    download_url = None
-
-    order_id = resp.get("order_id")
-    tenant_id = resp.get("tenant_id")
-    url = f"https://willowcommerce-api.onrender.com/labels/{order_id}/{tenant_id}/get_label"
-
-    response = request.get(url)
-    if response.status_code == 200:
-        data = response.json()
-        label_id = data['label_id']['id']
-        view_url = f"https://willowcommerce-api.onrender.com/labels/{label_id}/view"
-        download_url = f"https://willowcommerce-api.onrender.com/labels/{label_id}/download"
-    return view_url, download_url
-
-
-
-
 app = Flask(__name__, static_folder="public", static_url_path="/public")
 app.secret_key = "replace-with-strong-secret"
 
@@ -113,6 +93,7 @@ AGENT_MESSAGES = {}  # agent_id -> list of messages
 USER_AGENT = {}      # username -> agent_id 
 
 
+# ---------------- Funcrions ----------------
 def require_auth(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
@@ -120,7 +101,45 @@ def require_auth(fn):
             return jsonify({"ok": False, "message": "Not logged in"}), 401
         return fn(*args, **kwargs)
     return wrapper
+import requests  # Add this import if not already present
 
+def extract_label_links(resp):
+    view_url = None
+    download_url = None
+    order_id = None
+    tenant_id = None
+
+    # Convert SDK object to dict
+    data_json = resp.model_dump()  # response is ONE Response object (dict after dump)
+
+    try:
+        # collect all openapi_call arguments as dicts
+        all_args = [
+            json.loads(item["arguments"])  # arguments is a JSON string -> dict
+            for item in data_json.get("output", [])
+            if item.get("type") == "openapi_call" and item.get("arguments")
+        ]
+
+        order_id = all_args[0].get("order_id") if all_args else None
+        tenant_id = all_args[0].get("tenant_id") if all_args else None
+
+    except Exception as e:
+        all_args = None
+        print("Error:", e)  
+    
+    # Fetch label_id from your API
+    url = f"https://willowcommerce-api.onrender.com/labels/{order_id}/{tenant_id}/get_label"
+    try:
+        r = requests.get(url, timeout=10)
+        if r.status_code == 200:
+            data = r.json()
+            view_url = data.get("view_url")
+            download_url = data.get("download_url")
+    except:
+        pass
+
+    print(view_url,download_url)
+    return view_url, download_url
 
 # ---------------- Pages ----------------
 @app.get("/")
@@ -143,7 +162,7 @@ def agent_builder_page():
 
 @app.get("/agent/<agent_id>/test")
 @require_auth
-def agent_test_page(agent_id):
+def agent_test_page(agent_id):    
     if agent_id not in AGENTS:
         return "Agent not found", 404
     return send_from_directory("public", "agent_test.html")
@@ -195,35 +214,35 @@ def my_agent():
 
 
 
-# ------------------- Label APIs ---------------
-@app.get("/api/label/<label_id>.pdf")
-@require_auth
-def get_label_pdf(label_id):
-    # --- Call your label API that returns PDF bytes ---
-    label_api_url = "https://prm-api.qa.uniuni.com/orders/printlabel"  
-    headers = {
-        "Authorization": f"Bearer {"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vcHJtLWFwaS5xYS51bml1bmkuY29tL3N0b3JlYXV0aC9jdXN0b21lcnRva2VuIiwiaWF0IjoxNzY4MDQ5MzczLCJuYmYiOjE3NjgwNDkzNzMsImV4cCI6MTc2ODEzNTc3MywiY291bnRyeSI6IlVTIiwicGFydG5lcl9pZCI6Mzc5LCJuYW1lIjoiSGFydmljIGludGVybmF0aW9uYWwiLCJhcGlfdmVyc2lvbiI6IjIifQ.prjM3Mrz3ZI8CFCOJaef5nEQQrwoEiUsrWFKcomP58g"}",  # TODO if needed
-    }
+# # ------------------- Label APIs ---------------
+# @app.get("/api/label/<label_id>.pdf")
+# @require_auth
+# def get_label_pdf(label_id):
+#     # --- Call your label API that returns PDF bytes ---
+#     label_api_url = "https://prm-api.qa.uniuni.com/orders/printlabel"  
+#     headers = {
+#         "Authorization": f"Bearer {"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vcHJtLWFwaS5xYS51bml1bmkuY29tL3N0b3JlYXV0aC9jdXN0b21lcnRva2VuIiwiaWF0IjoxNzY4MDQ5MzczLCJuYmYiOjE3NjgwNDkzNzMsImV4cCI6MTc2ODEzNTc3MywiY291bnRyeSI6IlVTIiwicGFydG5lcl9pZCI6Mzc5LCJuYW1lIjoiSGFydmljIGludGVybmF0aW9uYWwiLCJhcGlfdmVyc2lvbiI6IjIifQ.prjM3Mrz3ZI8CFCOJaef5nEQQrwoEiUsrWFKcomP58g"}",
+#     }
 
-    body = {
-    "packageId": "UUS6153790882160798",
-    "labelType": 6,
-    "labelFormat": "pdf",
-    "type": "pdf"
-}
+#     body = {
+#     "packageId": "UUS6153790882160798",
+#     "labelType": 6,
+#     "labelFormat": "pdf",
+#     "type": "pdf"
+# }
 
-    r = requests.get(label_api_url, headers=headers, stream=True,body= body)
-    r.raise_for_status()
+#     r = requests.get(label_api_url, headers=headers, stream=True,body= body)
+#     r.raise_for_status()
 
-    # Stream response to client
-    return Response(
-        r.iter_content(chunk_size=8192),
-        mimetype="application/pdf",
-        headers={
-            "Content-Disposition": 'inline; filename="label.pdf"',
-            # If your UI is on another domain and you need CORS, handle it separately
-        },
-    )
+#     # Stream response to client
+#     return Response(
+#         r.iter_content(chunk_size=8192),
+#         mimetype="application/pdf",
+#         headers={
+#             "Content-Disposition": 'inline; filename="label.pdf"',
+#             # If your UI is on another domain and you need CORS, handle it separately
+#         },
+#     )
 
 # ---------------- Agent APIs ----------------
 @app.post("/api/agents")
@@ -314,13 +333,14 @@ def test_agent(agent_id):
     myAgent = agent["name"]
 
     agent_obj = project_client.agents.get(agent_name=myAgent)
+    agent_id = agent_obj.id
     print(f"Retrieved agent: {agent_obj.name}")
 
     openai_client = project_client.get_openai_client()
 
     # Reference the agent to get a response
     response = openai_client.responses.create(
-        input=[{"role": "user", "content": user_msg}],
+        input=[{"role": "user", "content": AGENT_MESSAGES[agent_id]}],
         extra_body={"agent": {"name": agent_obj.name, "type": "agent_reference"}},
     )
 
@@ -330,8 +350,6 @@ def test_agent(agent_id):
 
     # ✅ Extract label URLs from tool_result (not from reply text)
     view_url, download_url = extract_label_links(response)
-    import json
-    print(json.dumps(response.output, indent=2))
 
     TOOL_BASE = "https://willowcommerce-api.onrender.com"
     

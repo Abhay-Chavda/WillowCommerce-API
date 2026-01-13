@@ -12,10 +12,12 @@ conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
 cursor = conn.cursor()
 
 cursor.execute("""
-    SELECT * 
-    FROM orders 
-    WHERE tenant_id = %s AND status = %s
-""", ("u1", "DELIVERED"))
+               UPDATE orders SET status = 'DELIVERED' WHERE status = 'REFUND_INITIATED' OR status = 'REPLACEMENT_INITIATED'; """)
+
+conn.commit()
+cursor.execute("""
+    SELECT *
+    FROM orders WHERE status = 'DELIVERED'""")
 
 rows = cursor.fetchall()
 

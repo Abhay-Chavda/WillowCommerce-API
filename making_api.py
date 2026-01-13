@@ -288,7 +288,7 @@ def initiate_refund(tenant_id: str, order_id: int, payload: RefundRequest):
                 INSERT INTO labels (id, tenant_id, order_id, kind, created_at, pdf)
                 VALUES (%s, %s, %s, %s, %s, %s)
                 """,
-                (label_id, tenant_id, order_id, "return", int(time.time()), psycopg2.Binary(pdf_bytes))
+                (label_id, tenant_id, order_id, "return", int(time.time()), psycopg2.Binary(pdf_bytes))#path
             )
 
             conn.commit()
@@ -299,7 +299,9 @@ def initiate_refund(tenant_id: str, order_id: int, payload: RefundRequest):
                 "tenant_id": tenant_id,
                 "new_status": "REFUND_INITIATED",
                 "reason": payload.reason,
-                "label_id": label_id
+                "label":{
+                    "label_id": label_id,
+                }
             }
     finally:
         conn.close()
@@ -315,4 +317,4 @@ def get_label_id(order_id: int, tenant_id: str):
     cur = conn.cursor()
     cur.execute("SELECT id FROM labels WHERE order_id = %s AND tenant_id = %s", (order_id, tenant_id))
     label_id = cur.fetchone()
-    return {"ok":True, "label_id":label_id}
+    return {"ok":True, "label_id":label_id , "view_url":f"https://willowcommerce-api.onrender.com/labels/{label_id}/view", "download_url":f"https://willowcommerce-api.onrender.com/labels/{label_id}/download"}

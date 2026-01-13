@@ -102,6 +102,7 @@ def create_tables(conn):
                 status TEXT NOT NULL,
                 quantity INTEGER NOT NULL,
                 total_price NUMERIC(10,2) NOT NULL
+                
             )
         """)
 
@@ -256,11 +257,16 @@ def sanity_check(conn):
         """)
         for row in cur.fetchall():
             print(row)
+def delete_tables(conn):
+    with conn.cursor() as cur:
+        for table in ["users", "products", "tenants", "orders", "shipment", "labels"]:
+            cur.execute(f"DROP TABLE IF EXISTS {table} CASCADE")
 
 # ---------- Main ----------
 if __name__ == "__main__":
     conn = get_db_connection()
     try:
+        delete_tables(conn)
         create_tables(conn)
         insert_fake_data(conn)
         sanity_check(conn)
