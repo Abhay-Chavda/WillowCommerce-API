@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse, StreamingResponse,Response
+from fastapi.responses import JSONResponse, StreamingResponse,Response,FileResponse
 from pydantic import BaseModel
 from datetime import datetime, date
 import os
@@ -29,6 +29,8 @@ LABEL_API_HEADERS = {
     "Authorization": f"Bearer {TOKEN}",
     "Content-Type": "application/json"
 }
+
+
 
 # ---- OpenAPI 3.0 route ----
 @app.get("/openapi-3.0.json", include_in_schema=False)
@@ -69,6 +71,9 @@ def days_since(val) -> int | None:
 
     return (datetime.now() - dt).days
 
+def checking_order_belongs(order_id,tenant_id):
+    conn = get_db_connection()
+
 
 # ---------- Schemas ----------
 class RefundRequest(BaseModel):
@@ -80,41 +85,63 @@ class ReplacementRequest(BaseModel):
 
 
 # ------------ Label endpoints ------------
+
+@app.get("/labels/{kind}/{order_id}/{tenant_id}/create")
+def createlabels(kind:str,order_id:int,tenant_id:str):
+    conn = get_db_connection()
+    package_id = "UUS6153790882160798"
+    cur = conn.cursor()
+            # Call label API
+    try:
+        with httpx.Client(timeout=30) as client:
+            r = client.post(
+                UNIUNI_URL,
+                headers=LABEL_API_HEADERS,
+                json={
+                    "packageId": package_id,
+                    "labelType": 6,
+                    "labelFormat": "pdf",
+                    "type": "pdf"
+                }
+            )
+        r.raise_for_status()  # Raises on 4xx/5xx
+        pdf_bytes = r.content
+    except httpx.HTTPError as e:
+        conn.rollback()
+        raise HTTPException(502, f"Label service error: {str(e)}")
+    except Exception:
+        conn.rollback()
+        raise HTTPException(500, "Internal error")
+
+
+    # Save label
+    label_id = str(uuid.uuid4())
+    cur.execute(
+        """
+        INSERT INTO labels (id, tenant_id, order_id, kind, created_at, pdf)
+        VALUES (%s, %s, %s, %s, %s, %s)
+        """,
+        (label_id, tenant_id, order_id, kind, int(time.time()), psycopg2.Binary(pdf_bytes))
+    )
+
+    conn.commit()
+
+    return {"ok": True, "label_id": label_id}
+
+
 @app.get("/labels/{label_id}/view")
 def view_label(label_id: str):
-    conn = get_db_connection()
-    try:
-        with conn.cursor() as cur:
-            cur.execute("SELECT pdf FROM labels WHERE id = %s", (label_id,))
-            row = cur.fetchone()
+    LABEL_DIR = "/Users/abhaychavda/Documents/GitHub/WillowCommerce-API/Labels"
+    file_path = os.path.join(LABEL_DIR, f"{label_id}.pdf")
 
-        if not row or not row.get("pdf"):
-            raise HTTPException(status_code=404, detail="Label not found")
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="PDF not found")
 
-        pdf_data = row["pdf"]
-
-        # ✅ Postgres bytea often comes back as memoryview
-        if isinstance(pdf_data, memoryview):
-            pdf_bytes = pdf_data.tobytes()
-        else:
-            pdf_bytes = pdf_data
-
-        # ✅ If you accidentally stored base64 string
-        if isinstance(pdf_bytes, str):
-            pdf_bytes = base64.b64decode(pdf_bytes)
-
-        # ✅ sanity check (optional but recommended)
-        if not pdf_bytes.startswith(b"%PDF-"):
-            raise HTTPException(status_code=500, detail="Stored data is not a valid PDF")
-
-        # Best for PDFs: return raw bytes response (more reliable than streaming for small files)
-        return Response(
-            content=pdf_bytes,
-            media_type="application/pdf",
-            headers={"Content-Disposition": 'inline; filename="label.pdf"'},
-        )
-    finally:
-        conn.close()
+    return FileResponse(
+        path=file_path,
+        media_type="application/pdf",
+        filename=f"{label_id}.pdf",
+    )
 
 
 @app.get("/labels/{label_id}/download")
@@ -223,46 +250,12 @@ def replacement_order(tenant_id: str, order_id: int, payload: ReplacementRequest
                 ("REPLACEMENT_INITIATED", order_id, tenant_id)
             )
 
-            # Call label API
-            try:
-                with httpx.Client(timeout=30) as client:
-                    r = client.post(
-                        UNIUNI_URL,
-                        headers=LABEL_API_HEADERS,
-                        json={
-                            "packageId": package_id,
-                            "labelType": 6,
-                            "labelFormat": "pdf",
-                            "type": "pdf"
-                        }
-                    )
-                if r.status_code != 200 or not r.content:
-                    conn.rollback()
-                    raise HTTPException(status_code=502, detail="Label service failed")
-                pdf_bytes = r.content
-            except httpx.HTTPError:
-                conn.rollback()
-                raise HTTPException(status_code=502, detail="Label service unreachable")
-
-            # Save label
-            label_id = str(uuid.uuid4())
-            cur.execute(
-                """
-                INSERT INTO labels (id, tenant_id, order_id, kind, created_at, pdf)
-                VALUES (%s, %s, %s, %s, %s, %s)
-                """,
-                (label_id, tenant_id, order_id, "replacement", int(time.time()), psycopg2.Binary(pdf_bytes))
-            )
-
-            conn.commit()
-
             return {
                 "ok": True,
                 "order_id": order_id,
                 "tenant_id": tenant_id,
                 "new_status": "REPLACEMENT_INITIATED",
                 "reason": payload.reason,
-                "label_id": label_id
             }
     finally:
         conn.close()
@@ -294,48 +287,12 @@ def initiate_refund(tenant_id: str, order_id: int, payload: RefundRequest):
                 ("REFUND_INITIATED", order_id, tenant_id)
             )
 
-            # Call label API
-            try:
-                with httpx.Client(timeout=30) as client:
-                    r = client.post(
-                        UNIUNI_URL,
-                        headers=LABEL_API_HEADERS,
-                        json={
-                            "packageId": package_id,
-                            "labelType": 6,
-                            "labelFormat": "pdf",
-                            "type": "pdf"
-                        }
-                    )
-                if r.status_code != 200 or not r.content:
-                    conn.rollback()
-                    raise HTTPException(status_code=502, detail="Label service failed")
-                pdf_bytes = r.content
-            except httpx.HTTPError:
-                conn.rollback()
-                raise HTTPException(status_code=502, detail="Label service unreachable")
-
-            # Save label
-            label_id = str(uuid.uuid4())
-            cur.execute(
-                """
-                INSERT INTO labels (id, tenant_id, order_id, kind, created_at, pdf)
-                VALUES (%s, %s, %s, %s, %s, %s)
-                """,
-                (label_id, tenant_id, order_id, "return", int(time.time()), psycopg2.Binary(pdf_bytes))
-            )
-
-            conn.commit()
-
             return {
                 "ok": True,
                 "order_id": order_id,
                 "tenant_id": tenant_id,
                 "new_status": "REFUND_INITIATED",
                 "reason": payload.reason,
-                "label":{
-                    "label_id": label_id,
-                }
             }
     finally:
         conn.close()

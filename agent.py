@@ -56,7 +56,7 @@ while True:
 
     except Exception as e:
         all_args = None
-        print("Error:", e)  
+        print("Error:", e)
 
     AGENT_MESSAGES[agent_id].append({
         "role": "assistant",

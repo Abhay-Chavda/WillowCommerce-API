@@ -110,19 +110,6 @@
                 <label>Agent Name</label>
                 <input id="agentName" placeholder="e.g., Replacement SOP Agent" />
 
-                <div id="categoryBlock" style="display:none;">
-                    <label>Category</label>
-                    <select id="categorySelect">
-                        <option value="return_labels">Return Labels</option>
-                        <option value="order_status">Order Status</option>
-                        <option value="replacements" selected>Replacements</option>
-                        <option value="cancellations">Cancellations</option>
-                        <option value="refund_drafts">Refund Drafts</option>
-                        <option value="escalation">Escalation</option>
-                        <option value="other">Other</option>
-                    </select>
-                </div>
-
 
                 <label>Agent Instructions</label>
                 <textarea id="instructions" placeholder="Write system instructions for the agent..."></textarea>
@@ -132,6 +119,7 @@
                     <button class="btn2" id="clearBtn">Clear</button>
                     <button class="btn2" id="testBtn" style="display:none;">Test</button>
                     <button class="btn2" id="dashBtn" style="display:none;">Dashboard</button>
+                    <button class="btn2" id="updateBtn" style= "display:none;">Update Agent</button>
                 </div>
 
 
@@ -173,10 +161,6 @@ If information is missing, request it.
                 document.getElementById("agentName").value = data.agent.name || "";
                 document.getElementById("instructions").value = data.agent.instructions || "";
 
-                // ✅ show category only when updating
-                document.getElementById("categoryBlock").style.display = "block";
-                document.getElementById("categorySelect").value = data.agent.category || "other";
-
                 document.getElementById("createBtn").textContent = "Update Agent";
                 document.getElementById("testBtn").style.display = "inline-block";
                 document.getElementById("dashBtn").style.display = "inline-block";
@@ -204,32 +188,20 @@ If information is missing, request it.
             if (existingAgentId) window.location.href = `/agent/${existingAgentId}/dashboard`;
         };
 
+        document.getElementById("updateBtn").onclick = () => {
+            if (existingAgentId) window.location.href = `/agent/${existingAgentId}/update`;
+        };
+
         document.getElementById("createBtn").onclick = async () => {
             const msg = document.getElementById("msg");
-            msg.textContent = existingAgentId ? "Updating agent..." : "Creating agent...";
+            msg.textContent = "Creating agent...";
 
             const payload = {
                 name: document.getElementById("agentName").value.trim(),
-                instructions: document.getElementById("instructions").value.trim()
+                instructions: document.getElementById("instructions").value.trim(),
             };
 
-            // ✅ Update mode
-            if (existingAgentId) {
-                payload.category = document.getElementById("categorySelect").value;
-                const res = await fetch(`/api/agents/${existingAgentId}`, {
-                    method: "PUT",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(payload)
-                });
-
-                const data = await res.json().catch(() => ({}));
-                if (!res.ok) {
-                    msg.textContent = data.message || "Failed to update";
-                    return;
-                }
-                msg.textContent = "Updated ✅";
-                return;
-            }
+            //update 
 
             // ✅ Create mode
             const res = await fetch("/api/agents", {
@@ -244,7 +216,6 @@ If information is missing, request it.
                 // already has an agent
                 existingAgentId = data.agent_id;
                 msg.textContent = data.message || "You already have an agent.";
-                document.getElementById("createBtn").textContent = "Update Agent";
                 document.getElementById("testBtn").style.display = "inline-block";
                 document.getElementById("dashBtn").style.display = "inline-block";
                 return;
@@ -255,7 +226,7 @@ If information is missing, request it.
                 return;
             }
 
-            existingAgentId = data.agent.id;
+            existingAgentId = data.agent.agent_id;
             window.location.href = `/agent/${existingAgentId}/test`;
         };
 

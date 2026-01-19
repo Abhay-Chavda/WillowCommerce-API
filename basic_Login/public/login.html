@@ -33,6 +33,20 @@
     const form = document.getElementById("loginForm");
     const msg = document.getElementById("msg");
 
+    async function loadMyAgent() {
+      try {
+        const res = await fetch("/api/my-agent");
+        const data = await res.json();
+        if(data.agent){
+          return data.agent
+        }
+        else{
+          return null
+        }
+      } catch {
+        return null;
+      }
+    }
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       msg.textContent = "Logging in...";
@@ -53,7 +67,16 @@
         return;
       }
 
-      window.location.href = "/agent/new";
+      // After login, decide where to redirect:
+      // - If user already has an agent -> go to Test page
+      // - Else -> go to Create Agent page
+      const my = await loadMyAgent();
+      const agentId = my.id;
+      if (agentId) {
+        window.location.href = `/agent/${agentId}/test`;
+      } else {
+        window.location.href = "/agent/new";
+      }
     });
   </script>
 </body>

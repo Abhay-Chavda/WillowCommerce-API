@@ -6,7 +6,7 @@ token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vcHJtLWFwaS51bm
 
 headers = {
     "Authorization": f"Bearer {token}",
-    "Content-Type": "application/pdf"
+    "Content-Type": "application/json"
 }
 
 body = {
@@ -19,7 +19,7 @@ body = {
 response = requests.post(url, headers=headers, json=body, stream=True)
 
 if response.status_code == 200:
-    with open("report.pdf", "wb") as f:
+    with open("report1.pdf", "wb") as f:
         for chunk in response.iter_content(chunk_size=8192):
             f.write(chunk)
     print("PDF downloaded successfully")
