@@ -45,10 +45,13 @@
   <script>
     const agentId = window.location.pathname.split("/")[2];
 
+    user = null;
+
     async function loadMe() {
       const res = await fetch("/api/me");
       const data = await res.json();
-      if (!data.user) { window.location.href = "/login"; return; }
+      if (!data.user) { window.location.href = "/login"; return;}
+      user = data.user;
       document.getElementById("user").textContent = `${data.user.username} (${data.user.role})`;
     }
 
@@ -59,7 +62,7 @@
 
       const a = data.agent;
       document.getElementById("title").textContent = `Dashboard: ${a.name}`;
-      document.getElementById("meta").textContent = `Category: ${a.category} • Scope: ${a.scope || "-"} • Created by: ${a.created_by}`;
+      document.getElementById("meta").textContent = `Category: ${a.category || "Total"} • Scope: ${a.scope || "-"} • Created by: ${user.username}`;
       document.getElementById("instructions").textContent = a.instructions;
     }
 

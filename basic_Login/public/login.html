@@ -41,10 +41,10 @@
           return data.agent
         }
         else{
-          return null
+          return false
         }
       } catch {
-        return null;
+        return false;
       }
     }
     form.addEventListener("submit", async (e) => {
@@ -71,8 +71,8 @@
       // - If user already has an agent -> go to Test page
       // - Else -> go to Create Agent page
       const my = await loadMyAgent();
-      const agentId = my.id;
-      if (agentId) {
+      if (my){
+        const agentId = my.id;
         window.location.href = `/agent/${agentId}/test`;
       } else {
         window.location.href = "/agent/new";

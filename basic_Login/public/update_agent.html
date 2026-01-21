@@ -199,9 +199,10 @@ Instructions:
         category: document.getElementById("categorySelect").value
       };
 
-      const res = await fetch(`/api/agents/${agentId}`, {
+      const res = await fetch(`/agent/${agentId}/update`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
+        credentials:"include",
         body: JSON.stringify(payload)
       });
 
